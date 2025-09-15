@@ -36,6 +36,7 @@
         "tailwind-merge": "^3.2.0",
         "tailwindcss": "^4.1.4",
         "uuid": "^12.0.0",
-        "vanilla-picker": "^2.12.3"
+        "vanilla-picker": "^2.12.3",
+        "vite-plugin-pwa": "^1.0.3"
     }
 }
