@@ -6,8 +6,9 @@ import tailwindcss from "@tailwindcss/vite"
 
 export default defineConfig({
     root: "./",
+    base: "/my-diary",
     build: {
-        outDir: "./build"
+        outDir: "./docs"
     },
     plugins: [
         tailwindcss(),
