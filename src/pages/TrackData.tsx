@@ -49,7 +49,7 @@ export function TrackDataView() {
                 {foreach(trackDatas, actor => (
                     <div class="flex items-center px-4 py-2 bg-white/80 rounded-lg shadow-lg gap-2">
                         <div
-                            class="w-[25px] h-[25px] rounded"
+                            class={`w-[25px] h-[25px] rounded-full ${actor.shape}`}
                             style={{ background: actor.color }}
                         />
                         <span>{actor.name}</span>

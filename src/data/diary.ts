@@ -1,4 +1,4 @@
-import { dbDelete, dbGetAll, dbPut } from "@/data/db.js"
+import { dbDelete, dbGetAll, dbImport, dbPut } from "@/data/db.js"
 
 export type DiaryData = {
     actor: string
@@ -6,18 +6,24 @@ export type DiaryData = {
     content: any
 }
 
+const storeName = "diary"
+
 export async function diaryGetAll(): Promise<DiaryData[]> {
-    return await dbGetAll("diary")
+    return await dbGetAll(storeName)
 }
 
 export async function diaryAdd(data: DiaryData) {
-    await dbPut("diary", data)
+    await dbPut(storeName, data)
 }
 
-export async function actorEdit(name: string, data: DiaryData) {
+export async function diaryEdit(name: string, data: DiaryData) {
     // if (data.name !== name) {
     //     await dbDelete("actor", name)
     // }
     
     await dbPut("actor", data)
+}
+
+export async function diaryImport(data: DiaryData[]) {
+    await dbImport(storeName, data)
 }

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid"
-import { dbDelete, dbGetAll, dbPut } from "@/data/db.js"
+import { dbDelete, dbGetAll, dbImport, dbPut } from "@/data/db.js"
 
 export type ActorData = {
     id: string
@@ -10,8 +10,10 @@ export type ActorData = {
 
 export type ActorInputData = Omit<ActorData, 'id'>
 
+const storeName = "actor"
+
 export async function actorGetAll(): Promise<ActorData[]> {
-    return await dbGetAll("actor")
+    return await dbGetAll(storeName)
 }
 
 export async function actorAdd(data: ActorInputData) {
@@ -20,7 +22,7 @@ export async function actorAdd(data: ActorInputData) {
         ...data,
     }
     
-    await dbPut("actor", d)
+    await dbPut(storeName, d)
 }
 
 export async function actorEdit(id: string, data: ActorInputData) {
@@ -29,9 +31,13 @@ export async function actorEdit(id: string, data: ActorInputData) {
         ...data,
     }
     
-    await dbPut("actor", d)
+    await dbPut(storeName, d)
 }
 
 export async function actorDelete(id: string) {
-    await dbDelete("actor", id)
+    await dbDelete(storeName, id)
+}
+
+export async function actorImport(data: ActorData[]) {
+    await dbImport(storeName, data)
 }

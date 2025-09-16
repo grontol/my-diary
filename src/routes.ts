@@ -6,6 +6,7 @@ import { Actor } from "@/pages/Actor.jsx";
 import { Resep } from "@/pages/Resep.jsx";
 import { TrackDataView } from "@/pages/TrackData.jsx";
 import { Tracking } from "@/pages/Tracking.jsx";
+import { Sync } from "@/pages/Sync.jsx";
 
 export const routes: RouterConfig[] = [
     {
@@ -35,6 +36,10 @@ export const routes: RouterConfig[] = [
             {
                 path: 'resep',
                 component: Resep,
+            },
+            {
+                path: 'sync',
+                component: Sync,
             },
         ]
     },

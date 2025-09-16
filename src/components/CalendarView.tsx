@@ -184,7 +184,7 @@ export function CalendarView(props: {
                                     ))}
                                     
                                     {foreach(props.datas[dateFormatToString(year.value, month.value, d.date)]?.colors ?? [], c => (
-                                        <span class={`w-[14px] h-[14px] ${c.shape}`} style={{ background: c.color }}/>
+                                        <span class={`w-[12px] h-[12px] ${c.shape}`} style={{ background: c.color }}/>
                                     ))}
                                 </div>
                             )}

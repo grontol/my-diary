@@ -47,6 +47,8 @@ export function Tracking() {
         selectedYear = year
         selectedMonth = month
         selectedDate = date
+        
+        refreshList(year, month, date)
     }
     
     function dateSelected(year: number, month: number, date: number) {

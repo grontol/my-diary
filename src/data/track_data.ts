@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid"
-import { dbDelete, dbGet, dbGetAll, dbPut } from "@/data/db.js"
+import { dbDelete, dbGet, dbGetAll, dbImport, dbPut } from "@/data/db.js"
 
 export type TrackData = {
     id: string
@@ -50,4 +50,8 @@ export async function trackDataEdit(id: string, data: TrackInputData) {
 
 export async function trackDataDelete(id: string) {
     await dbDelete(storeName, id)
+}
+
+export async function trackDataImport(data: TrackData[]) {
+    await dbImport(storeName, data)
 }

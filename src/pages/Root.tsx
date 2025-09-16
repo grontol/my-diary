@@ -37,6 +37,11 @@ const sidebarItems: SidebarItemData[] = [
         icon: "icon-[emojione--pot-of-food]",
         link: "resep",
     },
+    {
+        text: "Sync",
+        icon: "icon-[fluent-color--arrow-sync-16]",
+        link: "sync",
+    },
 ]
 
 export function Root(props: { children?: JSX.Element }) {
