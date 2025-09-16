@@ -6,6 +6,7 @@ export type TrackData = {
     name: string
     color: string
     type: "none" | "string" | "number"
+    shape: string
     createdAt: Date
     editedAt: Date
 }
@@ -15,7 +16,12 @@ export type TrackInputData = Omit<TrackData, 'id' | 'createdAt' | 'editedAt'>
 const storeName = "track-data"
 
 export async function trackDataGetAll(): Promise<TrackData[]> {
-    return await dbGetAll(storeName)
+    const data: Optional<TrackData, 'shape'>[] = await dbGetAll(storeName)
+    
+    return data.map(x => ({
+        ...x,
+        shape: x.shape ?? "icon-[mdi--circle]"
+    }))
 }
 
 export async function trackDataAdd(data: TrackInputData) {

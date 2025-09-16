@@ -3,15 +3,14 @@ import { Button } from "@/components/Button.jsx"
 import { TextInput } from "@/components/TextInput.jsx"
 import { TrackData, trackDataAdd, trackDataDelete, trackDataEdit, trackDataGetAll, TrackInputData } from "@/data/track_data.js"
 import { foreach } from "@pang/core.js"
-import ColorPicker from "vanilla-picker"
-import { self } from "@pang/event-utils.js"
 import { onMount } from "@pang/lifecycle.js"
 import { state } from "@pang/reactive.js"
-import { twJoin } from "tailwind-merge"
+import { twMerge } from "tailwind-merge"
+import ColorPicker from "vanilla-picker"
 
 export function TrackDataView() {
     const trackDatas = state<TrackData[]>([])
-    const mode = state<'list' | 'add' | 'edit'>('list')
+    const mode = state<'list' | 'add' | 'edit'>('add')
     const editData = state<TrackData | undefined>(undefined)
     
     async function refresh() {
@@ -91,15 +90,26 @@ export function TrackDataView() {
 function InputTrackData(props: { data?: TrackData, onRefresh: () => void, onCancel: () => void }) {
     let pickerEl: HTMLDivElement
     
+    const shapes: string[] = [
+        "icon-[mdi--circle]",
+        "icon-[mdi--square]",
+        "icon-[mdi--star]",
+        "icon-[mdi--triangle]",
+        "icon-[mdi--heart]",
+        "icon-[foundation--skull]",
+    ]
+    
     const name = state(props.data?.name ?? '')
     const type = state(props.data?.type ?? 'none')
     const selectedColor = state(props.data?.color ?? "#FF0000")
+    const shape = state<string>(props.data?.shape ?? 'icon-[mdi--circle]')
     
     async function save() {
         const data: TrackInputData = {
             name: name.value,
             type: type.value,
             color: selectedColor.value,
+            shape: shape.value,
         }
         
         if (props.data === undefined) {            
@@ -146,7 +156,22 @@ function InputTrackData(props: { data?: TrackData, onRefresh: () => void, onCanc
             }}
         />
         
-        <div class="flex gap-1">
+        <span class="mt-2">Shape</span>
+        
+        <div class="flex gap-2">
+            {foreach(shapes, s => (
+                <span
+                    class={twMerge(
+                        s,
+                        "w-[50px] h-[50px] bg-white",
+                        s === shape.value ? "bg-green-600" : ""
+                    )}
+                    onclick={() => shape.value = s}
+                />
+            ))}
+        </div>
+        
+        <div class="flex gap-1 mt-4">
             <Button onclick={cancel}>Batal</Button>
             <Button onclick={save}>Simpan</Button>
         </div>

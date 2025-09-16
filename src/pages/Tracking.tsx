@@ -43,6 +43,7 @@ export function Tracking() {
     function dateLongTouch(year: number, month: number, date: number) {
         popupVisible.value = true
         
+        activeDate.value = dateFormatToString(year, month, date)
         selectedYear = year
         selectedMonth = month
         selectedDate = date
@@ -50,7 +51,6 @@ export function Tracking() {
     
     function dateSelected(year: number, month: number, date: number) {
         activeDate.value = dateFormatToString(year, month, date)
-        
         selectedYear = year
         selectedMonth = month
         selectedDate = date
@@ -155,7 +155,14 @@ export function Tracking() {
             }
             
             const trackData = trackDatas.find(x => x.id === t.dataId)
-            colors[dStr].colors?.push(trackData?.color ?? '#000000')
+            colors[dStr].colors?.push({
+                color: trackData?.color ?? '#000000',
+                shape: trackData?.shape ?? 'icon-[mdi--circle]'
+            })
+        }
+        
+        for (const k in colors) {
+            colors[k].colors?.sort((a, b) => a.color.localeCompare(b.color))
         }
         
         colorDatas.value = colors
@@ -167,6 +174,7 @@ export function Tracking() {
                 tracking: x,
                 trackData: trackDatasById.get(x.dataId)!
             }))
+            .sort((a, b) => a.trackData.color.localeCompare(b.trackData.color))
     }
     
     onMount(() => {
@@ -186,7 +194,7 @@ export function Tracking() {
             {foreach(list, r => (
                 <div class="flex items-center px-4 py-2 bg-white/80 rounded-lg shadow-lg gap-2">
                     <div
-                        class="w-[10px] h-[10px] rounded-full"
+                        class={`w-[20px] h-[20px] rounded-full ${r.trackData.shape}`}
                         style={{ background: r.trackData.color }}
                     />
                     <span class="text-sm">[{r.trackData.name}]</span>

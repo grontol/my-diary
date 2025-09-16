@@ -1,5 +1,6 @@
 import { dateFormatToString } from "@/utils/date.js"
 import { foreach } from "@pang/core.js"
+import { prevent } from "@pang/event-utils.js"
 import { derived, state } from "@pang/reactive.js"
 import { twMerge } from "tailwind-merge"
 
@@ -7,6 +8,8 @@ type Day = {
     date: number
     day: number
     curMonth: boolean
+    prevMonth: boolean
+    nextMonth: boolean
     curDay: boolean
 }
 
@@ -41,6 +44,8 @@ function buildMonth(year: number, month: number) {
             
             week.push({
                 curMonth: isCurMonth,
+                prevMonth: isPrevMonth,
+                nextMonth: isNextMonth,
                 date,
                 day: b,
                 curDay: isCurDay,
@@ -53,9 +58,14 @@ function buildMonth(year: number, month: number) {
     return res
 }
 
+export type Color = {
+    color: string
+    shape: string
+}
+
 export type DayData = {
     emoji?: string[]
-    colors?: string[]
+    colors?: Color[]
     mood?: string
 }
 
@@ -65,15 +75,16 @@ export function CalendarView(props: {
     onDateLongTouch?: (year: number, month: number, date: number) => void,
     onDateSelected?: (year: number, month: number, date: number) => void,
     selectedDate?: string,
+    changeMonthOnClickOther?: boolean,
 }) {
+    const changeMonthOnClickOther = derived(() => props.changeMonthOnClickOther ?? true)
+    
     const now = new Date()
     const year = state(now.getFullYear())
     const month = state(now.getMonth())
     
     const grid = derived(() => buildMonth(year.value, month.value))
     const monthName = derived(() => months[month.value])
-    
-    let longTouchTimer: any = null
     
     function decMonth() {
         if (month.value === 0) {
@@ -99,19 +110,34 @@ export function CalendarView(props: {
         props.onMonthChanged?.(year.value, month.value)
     }
     
-    function longTouchStart(date: number) {
-        longTouchTimer = setTimeout(() => {
-            longTouchTimer = null
-            props.onDateLongTouch?.(year.value, month.value, date)
-        }, 700)
+    function getY(d: Day) {
+        return d.prevMonth ? (month.value === 0 ? year.value - 1 : year.value)
+            : d.nextMonth ? (month.value === 11 ? year.value + 1 : year.value)
+            : year.value
     }
     
-    function longTouchEnd() {
-        clearTimeout(longTouchTimer)
+    function getM(d: Day) {
+        return d.prevMonth ? (month.value === 0 ? 11 : month.value - 1)
+            : d.nextMonth ? (month.value === 11 ? 0 : month.value + 1)
+            : month.value
     }
     
-    function longTouchMove() {
-        clearTimeout(longTouchTimer)
+    function longTouch(d: Day) {
+        props.onDateLongTouch?.(getY(d), getM(d), d.date)
+        
+        if (!d.curMonth && changeMonthOnClickOther.value) {
+            if (d.prevMonth) decMonth()
+            else incMonth()
+        }
+    }
+    
+    function select(d: Day) {
+        props.onDateSelected?.(getY(d), getM(d), d.date)
+        
+        if (!d.curMonth && changeMonthOnClickOther.value) {
+            if (d.prevMonth) decMonth()
+            else incMonth()
+        }
     }
     
     return <div class="flex items-center px-2 py-4 select-none">
@@ -146,22 +172,19 @@ export function CalendarView(props: {
                                 d.curDay ? "border-fuchsia-600" : "",
                                 d.curMonth && props.selectedDate && props.selectedDate === dateFormatToString(year.value, month.value, d.date) ? "bg-fuchsia-300" : "",
                             )}
-                            ontouchstart={() => longTouchStart(d.date)}
-                            ontouchend={longTouchEnd}
-                            ontouchmove={longTouchMove}
-                            oncontextmenu={e => e.preventDefault()}
-                            onclick={() => props.onDateSelected?.(year.value, month.value, d.date)}
+                            oncontextmenu={prevent(() => longTouch(d))}
+                            onclick={() => select(d)}
                         >
                             <span>{d.date}</span>
                             
                             {d.curMonth && props.datas[dateFormatToString(year.value, month.value, d.date)] && (
-                                <div class="flex justify-center items-center gap-0.5">
+                                <div class="flex justify-center items-center">
                                     {foreach(props.datas[dateFormatToString(year.value, month.value, d.date)]?.emoji ?? [], e => (
                                         <span class="" style={{ fontSize: '0.7rem' }}>{e}</span>
                                     ))}
                                     
                                     {foreach(props.datas[dateFormatToString(year.value, month.value, d.date)]?.colors ?? [], c => (
-                                        <div class="w-[10px] h-[10px] rounded-full" style={{ background: c }}/>
+                                        <span class={`w-[14px] h-[14px] ${c.shape}`} style={{ background: c.color }}/>
                                     ))}
                                 </div>
                             )}
