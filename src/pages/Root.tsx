@@ -110,20 +110,11 @@ export function Root(props: { children?: JSX.Element }) {
             class="h-full flex flex-col relative overflow-hidden"
         >
             <div
-                class="flex-1 flex flex-col relative duration-75 transition-transform bg-fuchsia-200"
+                class="flex-1 flex flex-col relative duration-75 transition-transform from-fuchsia-200 via-fuchsia-300/60 to-purple-300 bg-gradient-to-b"
                 style={{
                     transform: `translateX(${sidebarX.value}px)`
                 }}
-            >            
-                <div
-                    class="absolute inset-0 rotate-180"
-                    style={{
-                        background: `url('/images/background3.jpg')`,
-                        opacity: '0.3',
-                        filter: 'blur(4px)'
-                    }}
-                />
-                
+            >                
                 <div
                     class="absolute inset-0 bg-black z-10 transition-opacity pointer-events-none"
                     style={{
