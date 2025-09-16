@@ -38,6 +38,6 @@ export async function actorDelete(id: string) {
     await dbDelete(storeName, id)
 }
 
-export async function actorImport(data: ActorData[]) {
+export async function actorImport(data: ActorData[]) {    
     await dbImport(storeName, data)
 }

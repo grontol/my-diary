@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid"
 import { dbDelete, dbGet, dbGetAll, dbImport, dbPut } from "@/data/db.js"
+import { dateRefineFromImport } from "@/utils/date.js"
 
 export type TrackData = {
     id: string
@@ -53,5 +54,9 @@ export async function trackDataDelete(id: string) {
 }
 
 export async function trackDataImport(data: TrackData[]) {
+    for (const r of data) {
+        dateRefineFromImport(r, ["createdAt", "editedAt"])
+    }
+    
     await dbImport(storeName, data)
 }
