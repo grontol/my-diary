@@ -4,6 +4,7 @@ import { ActorData, actorGetAll, actorImport } from "@/data/actor.js";
 import { DiaryData, diaryGetAll, diaryImport } from "@/data/diary.js";
 import { TrackData, trackDataGetAll, trackDataImport } from "@/data/track_data.js";
 import { TrackingData, trackingDataGetAll, trackingImport } from "@/data/tracking.js";
+import { envExport, envIsAndroid } from "@/utils/env.js";
 
 export function Sync() {
     async function exports() {
@@ -14,7 +15,12 @@ export function Sync() {
             tracking: await trackingDataGetAll(),
         }
         
-        writeFile(JSON.stringify(data), "data.json", "application/json")
+        if (envIsAndroid()) {
+            envExport(JSON.stringify(data))
+        }
+        else {
+            writeFile(JSON.stringify(data), "data.txt", "text/plain")
+        }
     }
     
     async function imports() {
@@ -48,6 +54,10 @@ export function Sync() {
     }
     
     return <div class="flex flex-col p-6 gap-4">
+        {envIsAndroid() && (
+            <div>This is Android</div>
+        )}
+        
         <Button onclick={exports}>Export</Button>
         <Button onclick={imports}>Import</Button>
     </div>
@@ -57,7 +67,7 @@ async function readFile(): Promise<string> {
     return new Promise((res, rej) => {
         const input = document.createElement('input')
         input.type = 'file'
-        input.accept = ".json"
+        input.accept = ".txt"
 
         input.addEventListener('change', function(event) {
             const selectedFile = (event?.target as any).files[0]

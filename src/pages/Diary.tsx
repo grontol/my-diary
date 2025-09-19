@@ -10,7 +10,11 @@ export function Diary() {
     let selectedMonth = 0
     let selectedDate = 0
     
-    const datas = state<Record<string, DayData>>({})
+    const datas = state<Record<string, DayData>>({
+        '2025-09-01': {
+            lines: [ "#FF0000", "#00FF00" ]
+        }
+    })
     
     const popupVisible = state(false)
     const inputDiaryVisible = state(false)
@@ -20,11 +24,13 @@ export function Diary() {
     }
     
     function dateLongTouch(year: number, month: number, date: number) {
-        popupVisible.value = true
+        // popupVisible.value = true
         
         selectedYear = year
         selectedMonth = month
         selectedDate = date
+        
+        inputDiaryVisible.value = true
     }
     
     function popupMenuSelect(id: string) {
@@ -37,6 +43,7 @@ export function Diary() {
     
     function saveDiary(actor: string, content: any) {
         console.log(actor, content)
+        inputDiaryVisible.value = false
     }
     
     return <div class="h-full">

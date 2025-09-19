@@ -7,6 +7,7 @@ export type TrackingData = {
     dataId: string
     date: Date
     value: string
+    note?: string
     createdAt: Date
     editedAt: Date
 }

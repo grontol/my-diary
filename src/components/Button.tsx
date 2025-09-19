@@ -1,4 +1,4 @@
-import { twMerge } from "tailwind-merge"
+import { twJoin, twMerge } from "tailwind-merge"
 
 type Props = {
     children?: JSX.Element
@@ -16,6 +16,26 @@ export function Button(props: Props) {
             onclick={props.onclick}
         >
             {props.children}
+        </button>
+    )
+}
+
+type IconButtonProps = {
+    onclick?: () => void
+    class?: string
+    icon: string
+}
+
+export function IconButton(props: IconButtonProps) {
+    return (
+        <button
+            class={twMerge(
+                "flex items-center p-1 active:bg-fuchsia-500/20",
+                props.class,
+            )}
+            onclick={props.onclick}
+        >
+            <span class={twJoin("text-gray-600", props.icon)}/>
         </button>
     )
 }

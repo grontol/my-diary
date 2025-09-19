@@ -1,5 +1,5 @@
 import { showAlert } from "@/components/Alert.jsx"
-import { Button } from "@/components/Button.jsx"
+import { Button, IconButton } from "@/components/Button.jsx"
 import { TextInput } from "@/components/TextInput.jsx"
 import { TrackData, trackDataAdd, trackDataDelete, trackDataEdit, trackDataGetAll, TrackInputData } from "@/data/track_data.js"
 import { foreach } from "@pang/core.js"
@@ -55,18 +55,16 @@ export function TrackDataView() {
                         <span>{actor.name}</span>
                         
                         <div class="flex-1"/>
-                        <button
-                            class="flex items-center p-1 active:bg-fuchsia-500/20"
+                        
+                        <IconButton
                             onclick={() => remove(actor)}
-                        >
-                            <span class="icon-[material-symbols--delete]"></span>
-                        </button>
-                        <button
-                            class="flex items-center p-1 active:bg-fuchsia-500/20"
+                            icon="icon-[material-symbols--delete]"
+                        />
+                        
+                        <IconButton
                             onclick={() => startEdit(actor)}
-                        >
-                            <span class="icon-[material-symbols--edit]"></span>
-                        </button>
+                            icon="icon-[material-symbols--edit]"
+                        />
                     </div>
                 ))}
                 

@@ -23,12 +23,7 @@ const sidebarItems: SidebarItemData[] = [
         link: "/track-data",
     },
     {
-        text: "Diary",
-        icon: "icon-[fluent-color--book-16]",
-        link: "/diary",
-    },
-    {
-        text: "Tracking",
+        text: "Diary & Tracking",
         icon: "icon-[emojione-v1--note-pad]",
         link: "/tracking",
     },
@@ -75,13 +70,20 @@ export function Root(props: { children?: JSX.Element }) {
         closeSidebar()
     }
     
+    function blackClick(e: MouseEvent) {
+        e.stopPropagation()
+        closeSidebar()
+    }
+    
     onMount(() => {
         document.addEventListener("touchstart", e => {
-            sidebarXStart = sidebarX.value
-            startX = e.touches[0].clientX
-            deltaX = 0
-            startTime = Date.now()
-            isDragging = true
+            if (sidebarOpen.value || e.touches[0].clientX < window.innerWidth * 0.05) {
+                sidebarXStart = sidebarX.value
+                startX = e.touches[0].clientX
+                deltaX = 0
+                startTime = Date.now()
+                isDragging = true
+            }
         })
         
         document.addEventListener("touchmove", e => {
@@ -92,6 +94,8 @@ export function Root(props: { children?: JSX.Element }) {
         })
         
         document.addEventListener("touchend", () => {
+            if (!isDragging) return
+            
             isDragging = false
             
             const deltaTime = Date.now() - startTime
@@ -115,16 +119,20 @@ export function Root(props: { children?: JSX.Element }) {
             class="h-full flex flex-col relative overflow-hidden"
         >
             <div
-                class="flex-1 flex flex-col relative duration-75 transition-transform from-fuchsia-200 via-fuchsia-300/60 to-purple-300 bg-gradient-to-b"
+                class="flex-1 flex flex-col relative duration-75 transition-transform from-fuchsia-200 via-fuchsia-300/60 to-purple-300 bg-gradient-to-b overflow-hidden"
                 style={{
                     transform: `translateX(${sidebarX.value}px)`
                 }}
             >                
                 <div
-                    class="absolute inset-0 bg-black z-10 transition-opacity pointer-events-none"
+                    class={twMerge(
+                        "absolute inset-0 bg-black z-10 transition-opacity",
+                        opacity.value > 0 ? "" : "pointer-events-none"
+                    )}
                     style={{
-                        opacity: `${opacity.value}`
+                        opacity: `${opacity.value}`,
                     }}
+                    onclick={blackClick}
                 />
                 
                 <div class="flex items-center relative px-2 py-1 gap-2 bg-gradient-to-r from-pink-400/0 mb-2">
@@ -140,7 +148,7 @@ export function Root(props: { children?: JSX.Element }) {
                     <span class="text-lg">{activeSidebar.value.text}</span>
                 </div>
                 
-                <div class="flex-1 relative overflow-auto">
+                <div class="flex-1 relative overflow-auto flex flex-col">
                     {props.children}
                 </div>
             </div>
@@ -178,7 +186,7 @@ function Sidebar(props: { open: boolean, onSelect: (i: SidebarItemData) => void,
 
 function SidebarItem(props: { text: string, icon: string, link: string, onSelect: () => void }) {
     function select() {
-        goto(props.link)
+        goto(props.link, false)
         props.onSelect()
     }
     

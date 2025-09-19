@@ -8,7 +8,7 @@ import { twJoin } from "tailwind-merge";
 import { self } from "@pang/event-utils.js";
 import { actorAdd, ActorData, actorDelete, actorEdit, actorGetAll, ActorInputData } from "@/data/actor.js";
 import { foreach } from "@pang/core.js";
-import { Button } from "@/components/Button.jsx";
+import { Button, IconButton } from "@/components/Button.jsx";
 import { showAlert } from "@/components/Alert.jsx";
 
 export function Actor() {
@@ -50,7 +50,7 @@ export function Actor() {
         {mode.value === 'list' ? (
             <div class="flex flex-col gap-2 p-6">
                 {foreach(actors, actor => (
-                    <div class="flex items-center px-4 py-2 border border-fuchsia-500 gap-2">
+                    <div class="flex items-center px-4 py-2 bg-white/80 rounded-lg shadow-lg gap-2">
                         <div
                             class="w-[25px] h-[25px] rounded"
                             style={{ background: actor.color }}
@@ -59,18 +59,16 @@ export function Actor() {
                         <span class="emoji text-2xl">{actor.emoji}</span>
                         
                         <div class="flex-1"/>
-                        <button
-                            class="flex items-center p-1 active:bg-fuchsia-500/20"
+                        
+                        <IconButton
                             onclick={() => remove(actor)}
-                        >
-                            <span class="icon-[material-symbols--delete]"></span>
-                        </button>
-                        <button
-                            class="flex items-center p-1 active:bg-fuchsia-500/20"
+                            icon="icon-[material-symbols--delete]"
+                        />
+                        
+                        <IconButton
                             onclick={() => startEdit(actor)}
-                        >
-                            <span class="icon-[material-symbols--edit]"></span>
-                        </button>
+                            icon="icon-[material-symbols--edit]"
+                        />
                     </div>
                 ))}
                 
@@ -177,7 +175,7 @@ function InputActor(props: { data?: ActorData, onRefresh: () => void, onCancel: 
             }}
         />
         
-        <div class="flex">
+        <div class="flex gap-1 mt-2">
             <Button onclick={cancel}>Batal</Button>
             <Button onclick={save}>Simpan</Button>
         </div>
