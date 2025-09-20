@@ -19,6 +19,10 @@ const storeName = "track-data"
 export async function trackDataGetAll(): Promise<TrackData[]> {
     const data: Optional<TrackData, 'shape'>[] = await dbGetAll(storeName)
     
+    for (const r of data) {
+        dateRefineFromImport(r, ["createdAt", "editedAt"])
+    }
+    
     return data.map(x => ({
         ...x,
         shape: x.shape ?? "icon-[mdi--circle]"

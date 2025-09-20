@@ -8,10 +8,13 @@ import { ActorData, actorGetAll } from "@/data/actor.js";
 import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll } from "@/data/diary.js";
 import { TrackData, trackDataGetAll } from "@/data/track_data.js";
 import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, trackingDataGetAll } from "@/data/tracking.js";
+import { StoreName } from "@/data/type.js";
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
 import { dateFormatDateToString, dateFormatToString } from "@/utils/date.js";
+import { envAddWebEventListener, envIsAndroid, envRemoveWebEventListener } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
-import { onMount } from "@pang/lifecycle.js";
+import { stop } from "@pang/event-utils.js";
+import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { state } from "@pang/reactive.js";
 
 type TrackingListItemData = {
@@ -317,13 +320,32 @@ export function Tracking() {
             .sort((a, b) => a.actor.color.localeCompare(b.actor.color))
     }
     
-    onMount(() => {
-        getTrackData()
-        getActorData()
-        refreshColors()
+    async function webEventListener() {
+        await getTrackData()
+        await getActorData()
+        await refreshColors()
+        
+        refreshTrackingList(selectedYear, selectedMonth, selectedDate)
+        refreshDiaryList(selectedYear, selectedMonth, selectedDate)        
+    }
+    
+    onMount(async () => {
+        await getTrackData()
+        await getActorData()
+        await refreshColors()
+        
+        if (envIsAndroid()) {
+            envAddWebEventListener(webEventListener)
+        }
     })
     
-    return <div class="flex-1 flex flex-col">
+    onDestroy(() => {
+        if (envIsAndroid()) {
+            envRemoveWebEventListener(webEventListener)
+        }
+    })
+    
+    return <div class="flex-1 flex flex-col select-none">
         <CalendarView
             datas={colorDatas.value}
             onDateLongTouch={dateLongTouch}
@@ -351,7 +373,10 @@ export function Tracking() {
                             style={{ background: r.trackData.color }}
                         />
                         <span class="text-sm">[{r.trackData.name}]</span>
-                        <span class="font-bold">{r.tracking.value}</span>
+                        
+                        {r.tracking.value.length <= 10 && (
+                            <span class="font-bold text-sm">{r.tracking.value}</span>
+                        )}
                         
                         <div class="flex-1"/>
                         
@@ -365,6 +390,10 @@ export function Tracking() {
                             icon="icon-[material-symbols--edit]"
                         />
                     </div>
+                        
+                    {r.tracking.value.length > 10 && (
+                        <span class="font-bold ml-7 text-sm">{r.tracking.value}</span>
+                    )}
                     
                     {r.tracking.note && (
                         <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{r.tracking.note}</div>
@@ -373,7 +402,10 @@ export function Tracking() {
             ))}
             
             {foreach(diaryList, d => (
-                <div class="flex flex-col px-3 py-2 bg-white/80 rounded-lg shadow-lg">
+                <div
+                    class="flex flex-col px-3 py-2 bg-white/80 active:bg-white/60 rounded-lg shadow-lg"
+                    onclick={() => showDiary(d)}
+                >
                     <div class="flex items-center gap-1">
                         <div
                             class={`w-[20px] h-[20px] mr-1 icon-[mingcute--diary-fill]`}
@@ -385,18 +417,13 @@ export function Tracking() {
                         <div class="flex-1"/>
                         
                         <IconButton
-                            onclick={() => deleteDiary(d)}
+                            onclick={stop(() => deleteDiary(d))}
                             icon="icon-[material-symbols--delete]"
                         />
                         
                         <IconButton
-                            onclick={() => editDiary(d)}
+                            onclick={stop(() => editDiary(d))}
                             icon="icon-[material-symbols--edit]"
-                        />
-                        
-                        <IconButton
-                            onclick={() => showDiary(d)}
-                            icon="icon-[mdi--eye]"
                         />
                     </div>
                 </div>

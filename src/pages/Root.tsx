@@ -75,7 +75,7 @@ export function Root(props: { children?: JSX.Element }) {
         closeSidebar()
     }
     
-    onMount(() => {
+    onMount(async () => {
         document.addEventListener("touchstart", e => {
             if (sidebarOpen.value || e.touches[0].clientX < window.innerWidth * 0.05) {
                 sidebarXStart = sidebarX.value

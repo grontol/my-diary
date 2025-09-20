@@ -17,7 +17,13 @@ export type TrackInputData = Omit<TrackingData, 'id' | 'createdAt' | 'editedAt'>
 const storeName = "tracking"
 
 export async function trackingDataGetAll(): Promise<TrackingData[]> {
-    return await dbGetAll(storeName)
+    const data = await dbGetAll(storeName)
+    
+    for (const r of data) {
+        dateRefineFromImport(r, ["createdAt", "editedAt", "date"])
+    }
+    
+    return data
 }
 
 export async function trackingDataAdd(data: TrackInputData) {

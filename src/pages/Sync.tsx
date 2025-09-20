@@ -4,7 +4,8 @@ import { ActorData, actorGetAll, actorImport } from "@/data/actor.js";
 import { DiaryData, diaryGetAll, diaryImport } from "@/data/diary.js";
 import { TrackData, trackDataGetAll, trackDataImport } from "@/data/track_data.js";
 import { TrackingData, trackingDataGetAll, trackingImport } from "@/data/tracking.js";
-import { envExport, envIsAndroid } from "@/utils/env.js";
+import { envExport, envIsAndroid, envIsServerRunning, envStartServer, envStopServer, envSyncData } from "@/utils/env.js";
+import { state } from "@pang/reactive.js";
 
 export function Sync() {
     async function exports() {
@@ -53,6 +54,23 @@ export function Sync() {
         }
     }
     
+    const isServerRunning = state(envIsServerRunning())
+    
+    function startServer() {
+        envStartServer()
+        isServerRunning.value = true
+        
+        // Pushing data to android
+        envSyncData()
+    }
+    
+    async function stopServer() {
+        envSyncData()
+        
+        envStopServer()
+        isServerRunning.value = false
+    }
+    
     return <div class="flex flex-col p-6 gap-4">
         {envIsAndroid() && (
             <div>This is Android</div>
@@ -60,6 +78,16 @@ export function Sync() {
         
         <Button onclick={exports}>Export</Button>
         <Button onclick={imports}>Import</Button>
+        
+        {envIsAndroid() && (
+            <>
+                {isServerRunning.value ? (
+                    <Button onclick={stopServer}>Stop Server</Button>
+                ) : (
+                    <Button onclick={startServer}>Start Server</Button>
+                )}                
+            </>
+        )}
     </div>
 }
 

@@ -1,0 +1,1 @@
+export type StoreName = "actor" | "track-data" | "diary" | "tracking"

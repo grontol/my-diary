@@ -1,0 +1,5 @@
+☐ Kasih preview di list diary
+✔ Client mode : jadi servernya dari device lain @done(25-09-21 01:10)
+☐ Resep CRUD
+✔ Kalo client put / delete, di android bisa realtime update @done(25-09-21 01:10)
+✔ Mekanisme pending kalau android-nya lagi background mode @done(25-09-21 01:10)

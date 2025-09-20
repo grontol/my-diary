@@ -1,3 +1,6 @@
+import { StoreName } from "@/data/type.js"
+import { envIsAndroid, envIsClientMode, envPushData, envServerBaseUrl } from "@/utils/env.js"
+
 let db: IDBDatabase | null = null
 
 function dbInit(): Promise<IDBDatabase> {
@@ -37,7 +40,19 @@ function dbInit(): Promise<IDBDatabase> {
     })
 }
 
-export async function dbPut(storeName: string, data: any): Promise<void> {
+export async function dbPut(storeName: StoreName, data: any, fromWeb = false): Promise<void> {
+    if (envIsClientMode()) {
+        return fetchPost({
+            kind: "put",
+            storeName,
+            data,
+        })
+    }
+    
+    if (envIsAndroid() && !fromWeb) {
+        envPushData("put", storeName, JSON.stringify(data))
+    }
+    
     const db = await dbInit()
     const tx = db.transaction(storeName, "readwrite")
     const store = tx.objectStore(storeName)
@@ -54,7 +69,19 @@ export async function dbPut(storeName: string, data: any): Promise<void> {
     })
 }
 
-export async function dbDelete(storeName: string, query: IDBValidKey | IDBKeyRange): Promise<void> {
+export async function dbDelete(storeName: StoreName, query: IDBValidKey | IDBKeyRange, fromWeb = false): Promise<void> {
+    if (envIsClientMode()) {
+        return fetchPost({
+            kind: "delete",
+            storeName,
+            data: query,
+        })
+    }
+    
+    if (envIsAndroid() && !fromWeb) {
+        envPushData("delete", storeName, query.toString())
+    }
+    
     const db = await dbInit()
     const tx = db.transaction(storeName, "readwrite")
     const store = tx.objectStore(storeName)
@@ -71,7 +98,15 @@ export async function dbDelete(storeName: string, query: IDBValidKey | IDBKeyRan
     })
 }
 
-export async function dbGet(storeName: string, query: IDBValidKey | IDBKeyRange): Promise<any> {
+export async function dbGet(storeName: StoreName, query: IDBValidKey | IDBKeyRange): Promise<any> {
+    if (envIsClientMode()) {
+        return fetchPost({
+            kind: "get",
+            storeName,
+            data: query,
+        })
+    }
+    
     const db = await dbInit()
     const tx = db.transaction(storeName, "readonly")
     const store = tx.objectStore(storeName)
@@ -88,11 +123,18 @@ export async function dbGet(storeName: string, query: IDBValidKey | IDBKeyRange)
     })
 }
 
-export async function dbGetAll(storeName: string, query?: IDBValidKey | IDBKeyRange | null, count?: number): Promise<any[]> {
+export async function dbGetAll(storeName: StoreName): Promise<any[]> {
+    if (envIsClientMode()) {
+        return fetchPost({
+            kind: "getAll",
+            storeName,
+        })
+    }
+    
     const db = await dbInit()
     const tx = db.transaction(storeName, "readonly")
     const store = tx.objectStore(storeName)    
-    const result = store.getAll(query, count)
+    const result = store.getAll()
     
     return new Promise((res, rej) => {
         result.onsuccess = function() {
@@ -105,24 +147,13 @@ export async function dbGetAll(storeName: string, query?: IDBValidKey | IDBKeyRa
     })
 }
 
-export async function dbClear(storeName: string): Promise<void> {
-    const db = await dbInit()
-    const tx = db.transaction(storeName, "readonly")
-    const store = tx.objectStore(storeName)    
-    const result = store.clear()
-    
-    return new Promise((res, rej) => {
-        result.onsuccess = function() {
-            res()
-        }
+export async function dbImport(storeName: StoreName, data: any[]): Promise<void> {
+    if (envIsClientMode()) {
+        alert("Gak bisa import di client mode")
         
-        tx.onerror = function() {
-            rej()
-        }
-    })
-}
-
-export async function dbImport(storeName: string, data: any[]): Promise<void> {
+        return
+    }
+    
     const db = await dbInit()
     const tx = db.transaction(storeName, "readwrite")
     const store = tx.objectStore(storeName)
@@ -142,4 +173,22 @@ export async function dbImport(storeName: string, data: any[]): Promise<void> {
             rej()
         }
     })
+}
+
+type Payload = {
+    kind: "getAll" | "get" | "put" | "delete",
+    storeName: string,
+    data?: any
+}
+
+async function fetchPost(payload: Payload) {
+    const res = await fetch(envServerBaseUrl(), {
+        method: "POST",
+        headers: {
+            'Content-type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    })
+    
+    return res.json()
 }

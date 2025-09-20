@@ -1,4 +1,5 @@
 import { dbDelete, dbGetAll, dbImport, dbPut } from "@/data/db.js"
+import { StoreName } from "@/data/type.js"
 import { dateRefineFromImport } from "@/utils/date.js"
 import { v4 } from "uuid"
 
@@ -11,10 +12,16 @@ export type DiaryData = {
 
 export type DiaryInputData = Omit<DiaryData, 'id'>
 
-const storeName = "diary"
+const storeName: StoreName = "diary"
 
 export async function diaryGetAll(): Promise<DiaryData[]> {
-    return await dbGetAll(storeName)
+    const data = await dbGetAll(storeName)
+    
+    for (const r of data) {
+        dateRefineFromImport(r, ["date"])
+    }
+    
+    return data
 }
 
 export async function diaryAdd(data: DiaryInputData) {
