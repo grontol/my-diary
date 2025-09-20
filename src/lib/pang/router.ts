@@ -104,18 +104,19 @@ export function formatUrlPath(path: string, withHash = true) {
 }
 
 export function goto(path: string, pushHistory = true) {
-    // if (pushHistory) {
+    if (pushHistory) {
         window.location.hash = formatUrlPath(path, false)
-    // }
-    // else {
-    //     const oldPath = trimAnyChar(window.location.hash, "#/", true, true)
-    //     const newPath = trimAnyChar(path, "#/", true, true)
+    }
+    else {
+        const oldPath = trimAnyChar(window.location.hash, "#/", true, true)
+        const newPath = trimAnyChar(path, "#/", true, true)
         
-    //     if (oldPath !== newPath) {        
-    //         history.replaceState(null, "", trimAnyChar(window.location.pathname, "/", false, true) + formatUrlPath(path, true))
-    //         globalReload?.()
-    //     }
-    // }
+        if (oldPath !== newPath) {        
+            const newUrl = trimAnyChar(window.location.pathname, "/", true, true) + formatUrlPath(path, true)
+            history.replaceState(null, "", newUrl)
+            globalReload?.()
+        }
+    }
 }
 
 export function isActivePath(path: string) {

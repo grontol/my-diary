@@ -66,7 +66,6 @@ function tellListeners(storeName: StoreName) {
 
 async function webEvent(kind: string, storeName: StoreName, data: string) {
     if (kind === "put") {
-        console.log(kind, storeName, data)
         await dbPut(storeName, JSON.parse(data), true)
     }
     else if (kind === "delete") {
