@@ -30,7 +30,7 @@ export function IconButton(props: IconButtonProps) {
     return (
         <button
             class={twMerge(
-                "flex items-center p-1 active:bg-fuchsia-500/20",
+                "flex items-center p-1 active:bg-fuchsia-500/20 justify-center rounded-lg",
                 props.class,
             )}
             onclick={props.onclick}

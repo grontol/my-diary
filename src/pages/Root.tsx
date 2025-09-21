@@ -52,7 +52,7 @@ export function Root(props: { children?: JSX.Element }) {
     
     const sidebarOpen = state(false)
     const sidebarX = state(0)
-    const activeSidebar = state(sidebarItems.find(x => isActivePath(x.link)) ?? sidebarItems[0])
+    const activeSidebar = state(sidebarItems.find(x => isActivePath(x.link)) ?? sidebarItems[2])
     const opacity = derived(() => sidebarX.value * 0.5 / sidebarWidth)
     
     function openSidebar() {

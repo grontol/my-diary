@@ -51,6 +51,14 @@ data class TrackingData(
     val editedAt: String,
 )
 
+data class ResepData(
+    val id: String,
+    val name: String,
+    val bahans: List<String>,
+    val tags: List<String>,
+    val content: JsonElement,
+)
+
 object WebRepo {
     private val _event = SingleLiveEvent<WebEvent>()
     val event: LiveData<WebEvent> get() = _event
@@ -59,11 +67,13 @@ object WebRepo {
     private val _trackData = mutableListOf<TrackData>()
     private val _diaryData = mutableListOf<DiaryData>()
     private val _trackingData = mutableListOf<TrackingData>()
+    private val _resepData = mutableListOf<ResepData>()
 
     private var _actorTime = 0L
     private var _trackTime = 0L
     private var _diaryTime = 0L
     private var _trackingTime = 0L
+    private var _resepTime = 0L
 
     fun pushEvent(d: WebEvent, fromAndroid: Boolean = false) {
         if (d.kind == "put") {
@@ -120,6 +130,19 @@ object WebRepo {
 
                     _trackingTime = System.nanoTime()
                 }
+                "resep" -> {
+                    val data = gson.fromJson(d.data, ResepData::class.java)
+                    val index = _resepData.indexOfFirst { it.id == data.id }
+
+                    if (index < 0) {
+                        _resepData.add(data)
+                    }
+                    else {
+                        _resepData[index] = data
+                    }
+
+                    _resepTime = System.nanoTime()
+                }
             }
         }
         else if (d.kind == "delete") {
@@ -154,6 +177,14 @@ object WebRepo {
                     if (index >= 0) {
                         _trackingData.removeAt(index)
                         _trackingTime = System.nanoTime()
+                    }
+                }
+                "resep" -> {
+                    val index = _resepData.indexOfFirst { it.id == d.data }
+
+                    if (index >= 0) {
+                        _resepData.removeAt(index)
+                        _resepTime = System.nanoTime()
                     }
                 }
             }
@@ -208,6 +239,16 @@ object WebRepo {
                     res = gson.toJson(_trackingData)
                 }
             }
+            "resep" -> {
+                if (_resepTime == 0L) {
+                    _resepData.clear()
+                    _resepData.addAll(gson.fromJson(data, object : TypeToken<List<ResepData>>() {}.type))
+                    _resepTime = System.nanoTime()
+                }
+                else {
+                    res = gson.toJson(_resepData)
+                }
+            }
         }
 
         return res
@@ -219,6 +260,7 @@ object WebRepo {
             "track-data" -> gson.toJson(_trackData)
             "diary" -> gson.toJson(_diaryData)
             "tracking" -> gson.toJson(_trackingData)
+            "resep" -> gson.toJson(_resepData)
             else -> "[]"
         }
     }
@@ -229,6 +271,7 @@ object WebRepo {
             "track-data" -> gson.toJson(_trackData.find { it.id == id })
             "diary" -> gson.toJson(_diaryData.find { it.id == id })
             "tracking" -> gson.toJson(_trackingData.find { it.id == id })
+            "resep" -> gson.toJson(_resepData.find { it.id == id })
             else -> "{}"
         }
     }

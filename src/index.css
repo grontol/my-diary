@@ -19,3 +19,17 @@ body {
 .emoji {
     font-family: 'Noto Color Emoji', 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif;
 }
+
+.ql-editor ul {
+    padding-left: 1em !important; /* default biasanya 1.5em atau 2em */
+}
+  
+  /* Buat ordered list */
+.ql-editor ol {
+    padding-left: 1em !important;
+}
+  
+  /* Kalau pakai indent level (tab/shift+tab) */
+.ql-editor .ql-indent-1 { padding-left: 3em !important; }
+.ql-editor .ql-indent-2 { padding-left: 4em !important; }
+.ql-editor .ql-indent-3 { padding-left: 5.5em !important; }

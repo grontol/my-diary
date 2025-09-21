@@ -1,6 +1,5 @@
 import { RouterConfig } from "@pang/router.js";
 import { Home } from "./pages/Home.jsx";
-import { Diary } from "@/pages/Diary.jsx";
 import { Root } from "@/pages/Root.jsx";
 import { Actor } from "@/pages/Actor.jsx";
 import { Resep } from "@/pages/Resep.jsx";
@@ -24,10 +23,6 @@ export const routes: RouterConfig[] = [
             {
                 path: 'track-data',
                 component: TrackDataView,
-            },
-            {
-                path: 'diary',
-                component: Diary,
             },
             {
                 path: 'tracking',

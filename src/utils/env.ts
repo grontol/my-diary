@@ -1,6 +1,7 @@
 import { actorGetAll, actorImport } from "@/data/actor.js"
 import { dbDelete, dbPut } from "@/data/db.js"
 import { diaryGetAll, diaryImport } from "@/data/diary.js"
+import { resepGetAll, resepImport } from "@/data/resep.js"
 import { trackDataGetAll, trackDataImport } from "@/data/track_data.js"
 import { trackingDataGetAll, trackingImport } from "@/data/tracking.js"
 import { StoreName } from "@/data/type.js"
@@ -15,8 +16,8 @@ export function envIsAndroid() {
     return getEnv()?.isAndroid()
 }
 
-export function envExport(data: string) {
-    getEnv()?.export(data)
+export function envExport(data: string, fileName: string) {
+    getEnv()?.export(data, fileName)
 }
 
 export function envSetData(storeName: string, data: string): string | null {
@@ -40,7 +41,8 @@ export function envIsServerRunning(): boolean {
 }
 
 export function envIsClientMode() {
-    return w.clientMode ?? !envIsAndroid()
+    // return w.clientMode ?? !envIsAndroid()
+    return w.clientMode ?? false
 }
 
 export function envServerBaseUrl() {
@@ -104,8 +106,14 @@ export async function envSyncData(storeName?: StoreName) {
             await trackingImport(JSON.parse(newData))
         }
     }
+    
+    if (!storeName || storeName === "resep") {
+        const newData = envSetData("resep", JSON.stringify(await resepGetAll()))
+        
+        if (newData) {
+            await resepImport(JSON.parse(newData))
+        }
+    }
 }
 
 w.webEvent = webEvent
-
-// Hari ini jam 14.30 baru bangun, aduhh. Tidurnya pas habis sholat subuh. Kenapa jadi susah banget bangun pagi ya. Kalo malem juga jadi gampang banget kebablasan.\n\nNasi masih agak banyak tapi karena magicom-nya dimatiin jadinya agak basi deh. Untung lauknya tadi malem udah dimasukin ke kulkas, jadi aman.\n

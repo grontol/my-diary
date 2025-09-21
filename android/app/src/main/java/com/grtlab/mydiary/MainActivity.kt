@@ -75,9 +75,7 @@ class MainActivity : AppCompatActivity() {
 
             @RequiresApi(Build.VERSION_CODES.Q)
             @JavascriptInterface
-            fun export(data: String) {
-                val fileName = "data.txt"
-
+            fun export(data: String, fileName: String) {
                 val resolver = contentResolver
                 val existingUri = findExistingDownload(this@MainActivity, fileName)
 
@@ -85,7 +83,7 @@ class MainActivity : AppCompatActivity() {
                     existingUri
                 } else {
                     val contentValues = ContentValues().apply {
-                        put(MediaStore.Downloads.DISPLAY_NAME, "data.txt")
+                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
                         put(MediaStore.Downloads.MIME_TYPE, "text/plain")
                         put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                     }
@@ -99,7 +97,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                Toast.makeText(this@MainActivity, "File saved: $uri", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@MainActivity, "File saved: ~/Downloads/${fileName}", Toast.LENGTH_LONG).show()
             }
 
             @JavascriptInterface
@@ -130,10 +128,8 @@ class MainActivity : AppCompatActivity() {
             }
         }, "AndroidEnv")
 
-//        webView.loadUrl("https://grontol.github.io/my-diary/")
-        webView.loadUrl("http://192.168.100.21:5173")
-//        webView.loadUrl("file:///android_asset/index.html")
-//        webView.loadUrl("https://appassets.androidplatform.net/index.html")
+//        webView.loadUrl("http://192.168.100.21:5173")
+        webView.loadUrl("https://appassets.androidplatform.net/index.html")
 
         WebRepo.event.observe(this) {
             val escaped = JSONObject.quote(it.data)

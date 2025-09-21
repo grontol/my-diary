@@ -2,25 +2,27 @@ import { showAlert } from "@/components/Alert.jsx";
 import { Button } from "@/components/Button.jsx";
 import { ActorData, actorGetAll, actorImport } from "@/data/actor.js";
 import { DiaryData, diaryGetAll, diaryImport } from "@/data/diary.js";
+import { ResepData, resepGetAll, resepImport } from "@/data/resep.js";
 import { TrackData, trackDataGetAll, trackDataImport } from "@/data/track_data.js";
 import { TrackingData, trackingDataGetAll, trackingImport } from "@/data/tracking.js";
 import { envExport, envIsAndroid, envIsServerRunning, envStartServer, envStopServer, envSyncData } from "@/utils/env.js";
 import { state } from "@pang/reactive.js";
 
 export function Sync() {
-    async function exports() {
+    async function exports(fileName = "data.txt") {
         const data = {
             actor: await actorGetAll(),
             track_data: await trackDataGetAll(),
             diary: await diaryGetAll(),
             tracking: await trackingDataGetAll(),
+            resep: await resepGetAll(),
         }
         
         if (envIsAndroid()) {
-            envExport(JSON.stringify(data))
+            envExport(JSON.stringify(data), fileName)
         }
         else {
-            writeFile(JSON.stringify(data), "data.txt", "text/plain")
+            writeFile(JSON.stringify(data), fileName, "text/plain")
         }
     }
     
@@ -32,12 +34,14 @@ export function Sync() {
                 track_data?: TrackData[],
                 diary?: DiaryData[],
                 tracking?: TrackingData[],
+                resep?: ResepData[],
             } = JSON.parse(content)
             
             if (data.actor) await actorImport(data.actor)
             if (data.track_data) await trackDataImport(data.track_data)
             if (data.diary) await diaryImport(data.diary)
             if (data.tracking) await trackingImport(data.tracking)
+            if (data.resep) await resepImport(data.resep)
                 
             showAlert({
                 title: "Sukses",
@@ -56,7 +60,17 @@ export function Sync() {
     
     const isServerRunning = state(envIsServerRunning())
     
-    function startServer() {
+    async function startServer() {
+        const d = new Date()
+        const ye = d.getFullYear()
+        const mo = (d.getMonth() + 1).toString().padStart(2, '0')
+        const da = d.getDate().toString().padStart(2, '0')
+        const ho = d.getHours().toString().padStart(2, '0')
+        const mi = d.getMinutes().toString().padStart(2, '0')
+        const se = d.getSeconds().toString().padStart(2, '0')
+        
+        await exports(`diary-tracking-backup-${ye}-${mo}-${da}_${ho}-${mi}-${se}.txt`)
+        
         envStartServer()
         isServerRunning.value = true
         

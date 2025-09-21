@@ -7,7 +7,7 @@ function dbInit(): Promise<IDBDatabase> {
     if (db) return Promise.resolve(db)
     
     return new Promise((res, rej) => {
-        const open = window.indexedDB.open("TheDb", 5)
+        const open = window.indexedDB.open("TheDb", 6)
     
         open.onupgradeneeded = function(e) {
             const db = open.result
@@ -26,6 +26,10 @@ function dbInit(): Promise<IDBDatabase> {
             
             if (!db.objectStoreNames.contains("tracking")) {
                 db.createObjectStore("tracking", { keyPath: "id" })
+            }
+            
+            if (!db.objectStoreNames.contains("resep")) {
+                db.createObjectStore("resep", { keyPath: "id" })
             }
         }
         

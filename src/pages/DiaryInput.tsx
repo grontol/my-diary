@@ -35,11 +35,6 @@ export function DiaryInput(props: {
         selectedActor.value = e.target?.value ?? ''
     }
     
-    function get() {
-        // quill.setContents(x)
-        // console.log(JSON.stringify(quill.getContents()))
-    }
-    
     onMount(async () => {
         actors.value = await actorGetAll()
         
@@ -64,63 +59,67 @@ export function DiaryInput(props: {
     })
     
     return <div
-        class="fixed inset-0 from-fuchsia-200 via-fuchsia-100 to-purple-300 bg-gradient-to-b flex flex-col overflow-y-auto z-10"
+        class="fixed inset-0 from-fuchsia-200 via-fuchsia-100 to-purple-300 bg-gradient-to-b flex flex-col z-10 overflow-y-auto"
     >
-        {!(props.readonly ?? false) && (
-            <div class="flex flex-col">
-                <select
-                    class="px-3 py-2 outline-none mr-2"
-                    onchange={actorChanged}
-                >
-                    {foreach(actors, a => (
-                        <option value={a.id} selected={selectedActor.value === a.id}>{a.name} {a.emoji}</option>
-                    ))}
-                </select>
-            </div>
-        )}
-        
-        <div
-            id="toolbar"
-            class="flex"
-            style={{
-                border: "1px solid var(--color-fuchsia-700)",
-                borderLeft: "none",
-                borderRight: "none",
-            }}
-        >
-            {(props.readonly ?? false) ? (
-                <div>{actor.value?.name} {actor.value?.emoji}</div>
-            ) : (
-                <>
-                    <select class="ql-header">
-                        <option value="1"></option>
-                        <option value="2"></option>
-                        <option selected></option>
+        <div class="flex flex-col flex-1">
+            {!(props.readonly ?? false) && (
+                <div class="flex flex-col">
+                    <select
+                        class="px-3 py-2 outline-none mr-2"
+                        onchange={actorChanged}
+                    >
+                        {foreach(actors, a => (
+                            <option value={a.id} selected={selectedActor.value === a.id}>{a.name} {a.emoji}</option>
+                        ))}
                     </select>
-                    
-                    <button class="ql-bold"></button>
-                    <button class="ql-italic"></button>
-                    <button class="ql-underline"></button>
-                    
-                    <button class="ql-list" value="ordered"></button>
-                    <button class="ql-list" value="bullet"></button>
-                </>
+                </div>
             )}
-
-            <div class="flex-1"/>
-
+            
+            <div
+                id="toolbar"
+                class="flex"
+                style={{
+                    border: "1px solid var(--color-fuchsia-700)",
+                    borderLeft: "none",
+                    borderRight: "none",
+                }}
+            >
+                {(props.readonly ?? false) ? (
+                    <div>{actor.value?.name} {actor.value?.emoji}</div>
+                ) : (
+                    <>
+                        <select class="ql-header">
+                            <option value="1"></option>
+                            <option value="2"></option>
+                            <option selected></option>
+                        </select>
+                        
+                        <button class="ql-bold"></button>
+                        <button class="ql-italic"></button>
+                        <button class="ql-underline"></button>
+                        
+                        <button class="ql-list" value="ordered"></button>
+                        <button class="ql-list" value="bullet"></button>
+                    </>
+                )}
+            </div>
+            <div ref={e => editorEl = e} />
+        </div>
+        
+        <div class="fixed bottom-0 left-0 right-0 flex border-t border-fuchsia-700 z-10 bg-purple-300">
             <IconButton
+                class="flex-1 py-2"
                 icon="icon-[material-symbols--close] text-xl"
                 onclick={cancel}
             />
             
             {!(props.readonly ?? false) && (
                 <IconButton
+                    class="flex-1 py-2"
                     icon="icon-[material-symbols--check] text-xl"
                     onclick={save}
                 />
             )}
         </div>
-        <div ref={e => editorEl = e} />
     </div>
 }

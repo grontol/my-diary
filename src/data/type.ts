@@ -1,1 +1,1 @@
-export type StoreName = "actor" | "track-data" | "diary" | "tracking"
+export type StoreName = "actor" | "track-data" | "diary" | "tracking" | "resep"
