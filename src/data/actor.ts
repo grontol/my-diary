@@ -1,5 +1,5 @@
+import { repo } from "@/data/repo.js"
 import { v4 as uuidv4 } from "uuid"
-import { dbDelete, dbGetAll, dbImport, dbPut } from "@/data/db.js"
 
 export type ActorData = {
     id: string
@@ -13,7 +13,7 @@ export type ActorInputData = Omit<ActorData, 'id'>
 const storeName = "actor"
 
 export async function actorGetAll(): Promise<ActorData[]> {
-    return await dbGetAll(storeName)
+    return await repo.getAll(storeName)
 }
 
 export async function actorAdd(data: ActorInputData) {
@@ -22,7 +22,7 @@ export async function actorAdd(data: ActorInputData) {
         ...data,
     }
     
-    await dbPut(storeName, d)
+    await repo.insert(storeName, d)
 }
 
 export async function actorEdit(id: string, data: ActorInputData) {
@@ -31,13 +31,13 @@ export async function actorEdit(id: string, data: ActorInputData) {
         ...data,
     }
     
-    await dbPut(storeName, d)
+    await repo.update(storeName, id, d)
 }
 
 export async function actorDelete(id: string) {
-    await dbDelete(storeName, id)
+    await repo.remove(storeName, id)
 }
 
 export async function actorImport(data: ActorData[]) {    
-    await dbImport(storeName, data)
+    await repo.import(storeName, data)
 }

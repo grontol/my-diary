@@ -6,7 +6,10 @@ import com.google.gson.JsonObject
 import fi.iki.elonen.NanoHTTPD
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.URL
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 private val gson = Gson()
 private val port = 8888
@@ -14,6 +17,35 @@ private val port = 8888
 class WebServer(
     private val context: Context
 ) : NanoHTTPD(port) {
+    private val clients = ConcurrentHashMap<String, LinkedBlockingQueue<String>>()
+
+    private val dataChangedObserver: (DataChangedEvent) -> Unit = { ev ->
+        val deadClients = mutableListOf<String>()
+
+        clients.forEach { (id, queue) ->
+            if (ev.from == DataChangedFrom.Android || ev.clientId != id) {
+                val offered = queue.offer(ev.storeName)
+                if (!offered) {
+                    deadClients.add(id)
+                }
+            }
+        }
+
+        deadClients.forEach { id ->
+            clients.remove(id)
+        }
+    }
+
+    override fun start() {
+        super.start()
+        DbRepo.changedEvent.observeForever(dataChangedObserver)
+    }
+
+    override fun stop() {
+        DbRepo.changedEvent.removeObserver(dataChangedObserver)
+        super.stop()
+    }
+
     override fun serve(session: IHTTPSession): Response {
         val r = when (session.method) {
             Method.OPTIONS -> newFixedLengthResponse(Response.Status.OK, "text/plain", "")
@@ -21,7 +53,23 @@ class WebServer(
                 val uri = session.uri.trimStart('/')
 
                 try {
-                    if (uri.isEmpty()) {
+                    if (uri == "events") {
+                        val clientId = session.parms["id"] ?: UUID.randomUUID().toString()
+                        val queue = clients.computeIfAbsent(clientId) { LinkedBlockingQueue() }
+
+                        val first = queue.poll(30, TimeUnit.SECONDS)
+                        val events = mutableListOf<String>()
+
+                        if (first != null) {
+                            events.add(first)
+                            queue.drainTo(events)
+                        }
+
+                        val payload = gson.toJson(events)
+
+                        newFixedLengthResponse(Response.Status.OK, "application/json", payload)
+                    }
+                    else if (uri.isEmpty()) {
                         val serverIpAddress = getLocalIp()
 
                         val content = context.assets.open("index.html")
@@ -60,6 +108,7 @@ class WebServer(
                     val m = mutableMapOf<String, String>()
                     session.parseBody(m)
 
+                    val clientId = session.parms["id"] ?: UUID.randomUUID().toString()
                     val body = gson.fromJson(m["postData"]!!, JsonObject::class.java)
 
                     val kind = body.get("kind").asString
@@ -68,17 +117,24 @@ class WebServer(
                     var res = "[]"
 
                     when (kind) {
-                        "getAll" -> res = WebRepo.getDataAll(storeName)
-                        "get" -> res = WebRepo.getDataSingle(storeName, body.get("data").asString)
-
-                        "put" -> {
+                        "getAll" -> res = DbRepo.getAll(storeName)
+                        "get" -> res = DbRepo.get(storeName, body.get("id").asString)
+                        "insert" -> {
                             val data = body.get("data").asJsonObject.toString()
-                            WebRepo.pushEvent(WebEvent(kind, storeName, data))
+                            DbRepo.insert(storeName, data, DataChangedFrom.Client, clientId)
                         }
-
+                        "update" -> {
+                            val id = body.get("id").asString
+                            val data = body.get("data").asJsonObject.toString()
+                            DbRepo.update(storeName, id, data, DataChangedFrom.Client, clientId)
+                        }
                         "delete" -> {
-                            val data = body.get("data").asString
-                            WebRepo.pushEvent(WebEvent(kind, storeName, data))
+                            val id = body.get("id").asString
+                            DbRepo.delete(storeName, id, DataChangedFrom.Client, clientId)
+                        }
+                        "import" -> {
+                            val data = body.get("data").asJsonObject.toString()
+                            DbRepo.import(storeName, data, DataChangedFrom.Client, clientId)
                         }
                     }
 

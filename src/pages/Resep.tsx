@@ -2,7 +2,7 @@ import { showAlert } from "@/components/Alert.jsx"
 import { Button, IconButton } from "@/components/Button.jsx"
 import { TextInput } from "@/components/TextInput.jsx"
 import { resepAdd, ResepData, resepDelete, resepEdit, resepGetAll } from "@/data/resep.js"
-import { envAddWebEventListener, envIsAndroid, envRemoveWebEventListener } from "@/utils/env.js"
+import { envAddDataChangedListener } from "@/utils/env.js"
 import { foreach } from "@pang/core.js"
 import { stop } from "@pang/event-utils.js"
 import { onDestroy, onMount } from "@pang/lifecycle.js"
@@ -125,22 +125,18 @@ export function Resep() {
         reseps.value = await resepGetAll()
     }
     
-    function webEventListener() {
+    function dataChangedListener() {
         refreshData()
     }
     
     onMount(() => {
         refreshData()
         
-        if (envIsAndroid()) {
-            envAddWebEventListener(webEventListener)
-        }
+        envAddDataChangedListener(dataChangedListener, ["resep"])
     })
     
     onDestroy(() => {
-        if (envIsAndroid()) {
-            envRemoveWebEventListener(webEventListener)
-        }
+        envAddDataChangedListener(dataChangedListener)
     })
     
     return <div class="flex flex-col h-full overflow-hidden">

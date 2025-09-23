@@ -8,10 +8,9 @@ import { ActorData, actorGetAll } from "@/data/actor.js";
 import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll } from "@/data/diary.js";
 import { TrackData, trackDataGetAll } from "@/data/track_data.js";
 import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, trackingDataGetAll } from "@/data/tracking.js";
-import { StoreName } from "@/data/type.js";
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
 import { dateFormatDateToString, dateFormatToString } from "@/utils/date.js";
-import { envAddWebEventListener, envIsAndroid, envRemoveWebEventListener } from "@/utils/env.js";
+import { envAddDataChangedListener, envRemoveWebEventListener } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
 import { stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
@@ -320,7 +319,7 @@ export function Tracking() {
             .sort((a, b) => a.actor.color.localeCompare(b.actor.color))
     }
     
-    async function webEventListener() {
+    async function dataChangedListener() {
         await getTrackData()
         await getActorData()
         await refreshColors()
@@ -334,15 +333,11 @@ export function Tracking() {
         await getActorData()
         await refreshColors()
         
-        if (envIsAndroid()) {
-            envAddWebEventListener(webEventListener)
-        }
+        envAddDataChangedListener(dataChangedListener, ["actor", "track-data", "diary", "tracking"])
     })
     
     onDestroy(() => {
-        if (envIsAndroid()) {
-            envRemoveWebEventListener(webEventListener)
-        }
+        envRemoveWebEventListener(dataChangedListener)
     })
     
     return <div class="flex-1 flex flex-col select-none">

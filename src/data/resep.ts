@@ -1,4 +1,4 @@
-import { dbDelete, dbGetAll, dbImport, dbPut } from "@/data/db.js"
+import { repo } from "@/data/repo.js"
 import { StoreName } from "@/data/type.js"
 import { v4 } from "uuid"
 
@@ -15,12 +15,12 @@ export type ResepInputData = Omit<ResepData, 'id'>
 const storeName: StoreName = "resep"
 
 export async function resepGetAll(): Promise<ResepData[]> {
-    const data = await dbGetAll(storeName)    
+    const data = await repo.getAll(storeName)    
     return data
 }
 
 export async function resepAdd(data: ResepInputData) {
-    await dbPut(storeName, {
+    await repo.insert(storeName, {
         ...data,
         id: v4(),
     })
@@ -33,13 +33,13 @@ export async function resepEdit(id: string, data: ResepInputData) {
         id,
     }
     
-    await dbPut(storeName, d)
+    await repo.update(storeName, id, d)
 }
 
 export async function resepDelete(id: string) {
-    await dbDelete(storeName, id)
+    await repo.remove(storeName, id)
 }
 
 export async function resepImport(data: ResepInputData[]) {
-    await dbImport(storeName, data)
+    await repo.import(storeName, data)
 }

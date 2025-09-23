@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        DbRepo.init(this)
+
         window.statusBarColor = "#701a75".toColorInt()
 
         webView = findViewById<WebView>(R.id.webView)
@@ -101,13 +103,33 @@ class MainActivity : AppCompatActivity() {
             }
 
             @JavascriptInterface
-            fun setData(storeName: String, data: String): String? {
-                return WebRepo.setData(storeName, data)
+            fun repoGetAll(storeName: String): String {
+                return DbRepo.getAll(storeName)
             }
 
             @JavascriptInterface
-            fun pushData(kind: String, storeName: String, data: String) {
-                WebRepo.pushEvent(WebEvent(kind, storeName, data), true)
+            fun repoGet(storeName: String, id: String): String {
+                return DbRepo.get(storeName, id)
+            }
+
+            @JavascriptInterface
+            fun repoInsert(storeName: String, data: String) {
+                DbRepo.insert(storeName, data, DataChangedFrom.Android, null)
+            }
+
+            @JavascriptInterface
+            fun repoUpdate(storeName: String, id: String, data: String) {
+                DbRepo.update(storeName, id, data, DataChangedFrom.Android, null)
+            }
+
+            @JavascriptInterface
+            fun repoDelete(storeName: String, id: String) {
+                DbRepo.delete(storeName, id, DataChangedFrom.Android, null)
+            }
+
+            @JavascriptInterface
+            fun repoImport(storeName: String, data: String) {
+                DbRepo.import(storeName, data, DataChangedFrom.Android, null)
             }
 
             @JavascriptInterface
@@ -126,14 +148,19 @@ class MainActivity : AppCompatActivity() {
             fun isServerRunning(): Boolean {
                 return WebServerService.isRunning
             }
+
+
         }, "AndroidEnv")
 
-//        webView.loadUrl("http://192.168.100.21:5173")
-        webView.loadUrl("https://appassets.androidplatform.net/index.html")
+        webView.loadUrl("http://192.168.100.21:5173")
+//        webView.loadUrl("https://appassets.androidplatform.net/index.html")
 
-        WebRepo.event.observe(this) {
-            val escaped = JSONObject.quote(it.data)
-            webView.evaluateJavascript("webEvent('${it.kind}', '${it.storeName}', ${escaped})", null)
+        DbRepo.changedEvent.observe(this) {
+            val from = when (it.from) {
+                DataChangedFrom.Android -> "android"
+                DataChangedFrom.Client -> "client"
+            }
+            webView.evaluateJavascript("dataChangedEvent('$from', '${it.storeName}')", null)
         }
     }
 

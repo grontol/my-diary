@@ -17,6 +17,7 @@ class WebServerService : Service() {
         super.onCreate()
         createNotificationChannel()
         isRunning = true
+        DbRepo.init(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

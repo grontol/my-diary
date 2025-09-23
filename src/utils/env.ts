@@ -1,119 +1,106 @@
-import { actorGetAll, actorImport } from "@/data/actor.js"
-import { dbDelete, dbPut } from "@/data/db.js"
-import { diaryGetAll, diaryImport } from "@/data/diary.js"
-import { resepGetAll, resepImport } from "@/data/resep.js"
-import { trackDataGetAll, trackDataImport } from "@/data/track_data.js"
-import { trackingDataGetAll, trackingImport } from "@/data/tracking.js"
 import { StoreName } from "@/data/type.js"
+import { v4 } from "uuid"
+
+type AndroidEnv = {
+    isAndroid(): boolean
+    export(data: string, fileName: string): void
+    
+    repoGetAll(storeName: string): string
+    repoGet(storeName: string, id: string): string
+    repoInsert(storeName: string, data: string): void
+    repoUpdate(storeName: string, id: string, data: string): void
+    repoDelete(storeName: string, id: string): void
+    repoImport(storeName: string, data: string): void
+    
+    startServer(): void
+    stopServer(): void
+    isServerRunning(): boolean
+}
 
 const w = window as any
 
-function getEnv(): any | undefined {
+export function getAndroidEnv(): AndroidEnv | undefined {
     return w['AndroidEnv']
 }
 
-export function envIsAndroid() {
-    return getEnv()?.isAndroid()
+export function envIsAndroidMode(): boolean {
+    return getAndroidEnv()?.isAndroid() ?? false
 }
 
-export function envExport(data: string, fileName: string) {
-    getEnv()?.export(data, fileName)
-}
-
-export function envSetData(storeName: string, data: string): string | null {
-    return getEnv()?.setData(storeName, data)
-}
-
-export function envPushData(kind: string, storeName: StoreName, data: string) {
-    getEnv()?.pushData(kind, storeName, data)
-}
-
-export function envStartServer() {
-    getEnv()?.startServer()
-}
-
-export function envStopServer() {
-    getEnv()?.stopServer()
-}
-
-export function envIsServerRunning(): boolean {
-    return getEnv()?.isServerRunning()
-}
-
-export function envIsClientMode() {
-    // return w.clientMode ?? !envIsAndroid()
-    return w.clientMode ?? false
+export function envIsRemoteMode(): boolean {
+    return w.clientMode ?? !envIsAndroidMode()
 }
 
 export function envServerBaseUrl() {
     return w.serverBaseUrl ?? 'http://192.168.100.223:8888'
 }
 
-export type WebEventListener = (storeName: StoreName) => void
-const webEventListeners = new Set<WebEventListener>()
+export type DataChangedEventListener = (storeName: StoreName) => void
 
-export function envAddWebEventListener(l: WebEventListener) {
-    webEventListeners.add(l)
+export type ListenerData = {
+    fn: DataChangedEventListener
+    storeNames?: StoreName[]
 }
 
-export function envRemoveWebEventListener(l: WebEventListener) {
-    webEventListeners.delete(l)
+
+const listeners = new Set<ListenerData>()
+
+export function envAddDataChangedListener(l: DataChangedEventListener, storeNames?: StoreName[]) {
+    listeners.add({
+        fn: l,
+        storeNames,
+    })
+}
+
+export function envRemoveWebEventListener(l: DataChangedEventListener) {
+    const d = listeners.values().find(x => x.fn === l)
+    if (d) {
+        listeners.delete(d)
+    }
 }
 
 function tellListeners(storeName: StoreName) {
-    for (const l of webEventListeners) {
-        l(storeName)
+    for (const l of listeners) {
+        if (l.storeNames === undefined || l.storeNames.includes(storeName)) {
+            l.fn(storeName)
+        }
     }
 }
 
-async function webEvent(kind: string, storeName: StoreName, data: string) {
-    if (kind === "put") {
-        await dbPut(storeName, JSON.parse(data), true)
+function dataChangedEvent(from: string, storeName: StoreName) {
+    if (from === "android") {
+        if (envIsRemoteMode()) {
+            tellListeners(storeName)
+        }
     }
-    else if (kind === "delete") {
-        await dbDelete(storeName, data, true)
+    else if (from === "client") {
+        if (envIsAndroidMode()) {
+            tellListeners(storeName)
+        }
     }
-    
-    tellListeners(storeName)
 }
 
-export async function envSyncData(storeName?: StoreName) {
-    if (!storeName || storeName === "actor") {
-        const newData = envSetData("actor", JSON.stringify(await actorGetAll()))
-        if (newData) {
-            await actorImport(JSON.parse(newData))
-        }
-    }
-    
-    if (!storeName || storeName === "track-data") {
-        const newData = envSetData("track-data", JSON.stringify(await trackDataGetAll()))
-        if (newData) {
-            await trackDataImport(JSON.parse(newData))
-        }
-    }
-    
-    if (!storeName || storeName === "diary") {
-        const newData = envSetData("diary", JSON.stringify(await diaryGetAll()))
-        if (newData) {
-            await diaryImport(JSON.parse(newData))
-        }
-    }
-    
-    if (!storeName || storeName === "tracking") {
-        const newData = envSetData("tracking", JSON.stringify(await trackingDataGetAll()))
+w.dataChangedEvent = dataChangedEvent
+
+export const envClientId = v4()
+
+async function longPoll() {
+    try {
+        const res = await fetch(envServerBaseUrl() + `/events?id=${envClientId}`)
+        const data: string[] = await res.json()
         
-        if (newData) {
-            await trackingImport(JSON.parse(newData))
+        for (const d of data) {
+            tellListeners(d as StoreName)
         }
-    }
-    
-    if (!storeName || storeName === "resep") {
-        const newData = envSetData("resep", JSON.stringify(await resepGetAll()))
         
-        if (newData) {
-            await resepImport(JSON.parse(newData))
-        }
+        longPoll()
+    }
+    catch (e) {
+        console.error("Long poll error:", e)
+        setTimeout(longPoll, 5000)
     }
 }
 
-w.webEvent = webEvent
+if (envIsRemoteMode()) {
+    longPoll()
+}

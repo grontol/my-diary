@@ -1,6 +1,6 @@
-import { v4 as uuidv4 } from "uuid"
-import { dbDelete, dbGet, dbGetAll, dbImport, dbPut } from "@/data/db.js"
+import { repo } from "@/data/repo.js"
 import { dateRefineFromImport } from "@/utils/date.js"
+import { v4 as uuidv4 } from "uuid"
 
 export type TrackData = {
     id: string
@@ -17,7 +17,7 @@ export type TrackInputData = Omit<TrackData, 'id' | 'createdAt' | 'editedAt'>
 const storeName = "track-data"
 
 export async function trackDataGetAll(): Promise<TrackData[]> {
-    const data: Optional<TrackData, 'shape'>[] = await dbGetAll(storeName)
+    const data: Optional<TrackData, 'shape'>[] = await repo.getAll(storeName)
     
     for (const r of data) {
         dateRefineFromImport(r, ["createdAt", "editedAt"])
@@ -37,11 +37,11 @@ export async function trackDataAdd(data: TrackInputData) {
         ...data,
     }
     
-    await dbPut(storeName, d)
+    await repo.insert(storeName, d)
 }
 
 export async function trackDataEdit(id: string, data: TrackInputData) {
-    const oldData = await dbGet(storeName, id) as TrackData
+    const oldData = await repo.get(storeName, id) as TrackData
     
     const d: TrackData = {
         ...data,
@@ -50,11 +50,11 @@ export async function trackDataEdit(id: string, data: TrackInputData) {
         editedAt: new Date(),
     }
     
-    await dbPut(storeName, d)
+    await repo.update(storeName, id, d)
 }
 
 export async function trackDataDelete(id: string) {
-    await dbDelete(storeName, id)
+    await repo.remove(storeName, id)
 }
 
 export async function trackDataImport(data: TrackData[]) {
@@ -62,5 +62,5 @@ export async function trackDataImport(data: TrackData[]) {
         dateRefineFromImport(r, ["createdAt", "editedAt"])
     }
     
-    await dbImport(storeName, data)
+    await repo.import(storeName, data)
 }

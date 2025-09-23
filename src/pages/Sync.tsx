@@ -5,11 +5,11 @@ import { DiaryData, diaryGetAll, diaryImport } from "@/data/diary.js";
 import { ResepData, resepGetAll, resepImport } from "@/data/resep.js";
 import { TrackData, trackDataGetAll, trackDataImport } from "@/data/track_data.js";
 import { TrackingData, trackingDataGetAll, trackingImport } from "@/data/tracking.js";
-import { envExport, envIsAndroid, envIsServerRunning, envStartServer, envStopServer, envSyncData } from "@/utils/env.js";
+import { envIsAndroidMode, getAndroidEnv } from "@/utils/env.js";
 import { state } from "@pang/reactive.js";
 
 export function Sync() {
-    async function exports(fileName = "data.txt") {
+    async function exports() {
         const data = {
             actor: await actorGetAll(),
             track_data: await trackDataGetAll(),
@@ -18,8 +18,10 @@ export function Sync() {
             resep: await resepGetAll(),
         }
         
-        if (envIsAndroid()) {
-            envExport(JSON.stringify(data), fileName)
+        const fileName = createNameCurDate("diary-tracking-data")
+        
+        if (envIsAndroidMode()) {
+            getAndroidEnv()?.export(JSON.stringify(data), fileName)
         }
         else {
             writeFile(JSON.stringify(data), fileName, "text/plain")
@@ -58,42 +60,27 @@ export function Sync() {
         }
     }
     
-    const isServerRunning = state(envIsServerRunning())
+    const isServerRunning = state(getAndroidEnv()?.isServerRunning() ?? false)
     
     async function startServer() {
-        const d = new Date()
-        const ye = d.getFullYear()
-        const mo = (d.getMonth() + 1).toString().padStart(2, '0')
-        const da = d.getDate().toString().padStart(2, '0')
-        const ho = d.getHours().toString().padStart(2, '0')
-        const mi = d.getMinutes().toString().padStart(2, '0')
-        const se = d.getSeconds().toString().padStart(2, '0')
-        
-        await exports(`diary-tracking-backup-${ye}-${mo}-${da}_${ho}-${mi}-${se}.txt`)
-        
-        envStartServer()
+        getAndroidEnv()?.startServer()
         isServerRunning.value = true
-        
-        // Pushing data to android
-        envSyncData()
     }
     
     async function stopServer() {
-        envSyncData()
-        
-        envStopServer()
+        getAndroidEnv()?.stopServer()
         isServerRunning.value = false
     }
     
     return <div class="flex flex-col p-6 gap-4">
-        {envIsAndroid() && (
+        {envIsAndroidMode() && (
             <div>This is Android</div>
         )}
         
         <Button onclick={exports}>Export</Button>
         <Button onclick={imports}>Import</Button>
         
-        {envIsAndroid() && (
+        {envIsAndroidMode() && (
             <>
                 {isServerRunning.value ? (
                     <Button onclick={stopServer}>Stop Server</Button>
@@ -149,4 +136,16 @@ function writeFile(data: string, filename: string, mime: string) {
     a.click()
     window.URL.revokeObjectURL(urlToBlob)
     a.remove()
+}
+
+function createNameCurDate(name: string) {
+    const d = new Date()
+    const ye = d.getFullYear()
+    const mo = (d.getMonth() + 1).toString().padStart(2, '0')
+    const da = d.getDate().toString().padStart(2, '0')
+    const ho = d.getHours().toString().padStart(2, '0')
+    const mi = d.getMinutes().toString().padStart(2, '0')
+    const se = d.getSeconds().toString().padStart(2, '0')
+    
+    return `${name}-${ye}-${mo}-${da}_${ho}-${mi}-${se}.txt`
 }
