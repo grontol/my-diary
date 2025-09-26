@@ -9,7 +9,7 @@
         "test": "vitest run",
         "test-compiler": "vitest parser run",
         "parse": "bun src/transform-test.ts",
-        "deploy": "vite build && rm -rf android/app/src/main/assets/* && cp -r docs/* android/app/src/main/assets/"
+        "deploy": "vite build && rm -rf android/app/src/main/assets/* && cp -r build/* android/app/src/main/assets/"
     },
     "devDependencies": {
         "@babel/generator": "^7.26.5",

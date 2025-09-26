@@ -198,8 +198,11 @@ function ResepItem(props: { data: ResepData, onRemove?: () => void, onEdit?: () 
     >
         <div class="flex items-center gap-2">
             <IconButton
-                icon="icon-[weui--arrow-filled] text-xl"
-                class="px-2"
+                icon="icon-[mingcute--right-line]"
+                class={twMerge(
+                    "text-xl transition-transform",
+                    expanded.value ? "rotate-90" : ""
+                )}
                 onclick={stop(() => expanded.value = !expanded.value)}
             />
             

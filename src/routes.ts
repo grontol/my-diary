@@ -1,11 +1,11 @@
-import { RouterConfig } from "@pang/router.js";
-import { Home } from "./pages/Home.jsx";
-import { Root } from "@/pages/Root.jsx";
 import { Actor } from "@/pages/Actor.jsx";
 import { Resep } from "@/pages/Resep.jsx";
+import { Root } from "@/pages/Root.jsx";
+import { Sync } from "@/pages/Sync.jsx";
 import { TrackDataView } from "@/pages/TrackData.jsx";
 import { Tracking } from "@/pages/Tracking.jsx";
-import { Sync } from "@/pages/Sync.jsx";
+import { RouterConfig } from "@pang/router.js";
+import { Home } from "./pages/Home.jsx";
 
 export const routes: RouterConfig[] = [
     {

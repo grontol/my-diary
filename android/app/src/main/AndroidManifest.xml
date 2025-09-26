@@ -27,12 +27,31 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".VideoActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        />
+
         <service
             android:name=".WebServerService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="shortService"
         />
+
+        <receiver android:name=".StopServerReceiver" />
+        
+        <provider
+            android:authorities="${applicationId}.fileprovider"
+            android:name="androidx.core.content.FileProvider"
+            android:exported="false"
+            android:grantUriPermissions="true"
+        >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"
+                />
+        </provider>
     </application>
 
 </manifest>

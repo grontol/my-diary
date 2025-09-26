@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.google.gson.Gson
 import com.google.gson.JsonElement
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -47,10 +48,18 @@ data class TrackData(
     val editedAt: String,
 )
 
+enum class DiaryType {
+    @SerializedName("text")
+    Text,
+    @SerializedName("video")
+    Video,
+}
+
 data class DiaryData(
     val id: String,
     val actor: String,
     val date: String,
+    val type: DiaryType,
     val content: JsonElement,
 )
 
@@ -168,12 +177,21 @@ val diaryModel = Model("diary", { c ->
         id = c.string("id"),
         actor = c.string("actor"),
         date = c.string("date"),
+        type = when (c.stringOrNull("type")) {
+            "text" -> DiaryType.Text
+            "video" -> DiaryType.Video
+            else -> DiaryType.Text
+        },
         content = gson.fromJson(c.string("content"), JsonElement::class.java),
     )
 }, {
     put("id", it.id)
     put("actor", it.actor)
     put("date", it.date)
+    put("type", when (it.type) {
+        DiaryType.Text -> "text"
+        DiaryType.Video -> "video"
+    })
     put("content", gson.toJson(it.content))
 })
 
@@ -336,7 +354,7 @@ object DbRepo {
     }
 }
 
-class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 1) {
+class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE actor (
@@ -392,7 +410,9 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 1)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-
+        db.execSQL("""
+            ALTER TABLE diary ADD COLUMN type TEXT
+        """.trimIndent())
     }
 
 }

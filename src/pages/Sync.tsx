@@ -5,7 +5,7 @@ import { DiaryData, diaryGetAll, diaryImport } from "@/data/diary.js";
 import { ResepData, resepGetAll, resepImport } from "@/data/resep.js";
 import { TrackData, trackDataGetAll, trackDataImport } from "@/data/track_data.js";
 import { TrackingData, trackingDataGetAll, trackingImport } from "@/data/tracking.js";
-import { envIsAndroidMode, getAndroidEnv } from "@/utils/env.js";
+import { envAsAndroidFileUrl, envIsAndroidMode, getAndroidEnv } from "@/utils/env.js";
 import { state } from "@pang/reactive.js";
 
 export function Sync() {

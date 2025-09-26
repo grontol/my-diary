@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.grtlab.mydiary"
-        minSdk = 24
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -59,6 +59,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation("org.nanohttpd:nanohttpd:2.2.0")
-    implementation("com.google.code.gson:gson:2.13.2")
+    implementation(libs.nanohttpd.v220)
+    implementation(libs.gson)
+    implementation("com.arthenica:smart-exception-java:0.2.1")
+    implementation(files("libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar"))
+
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
 }

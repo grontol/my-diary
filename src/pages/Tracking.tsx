@@ -5,16 +5,18 @@ import { Popup } from "@/components/Popup.jsx";
 import { PopupMenu, PopupMenuItem } from "@/components/PopupMenu.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
-import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll } from "@/data/diary.js";
+import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll, DiaryMediaData } from "@/data/diary.js";
 import { TrackData, trackDataGetAll } from "@/data/track_data.js";
 import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, trackingDataGetAll } from "@/data/tracking.js";
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
+import { MediaDiaryInput } from "@/pages/MediaDiaryInput.jsx";
 import { dateFormatDateToString, dateFormatToString } from "@/utils/date.js";
-import { envAddDataChangedListener, envRemoveWebEventListener } from "@/utils/env.js";
+import { envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, VideoData } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
 import { stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { state } from "@pang/reactive.js";
+import { twMerge } from "tailwind-merge";
 
 type TrackingListItemData = {
     tracking: TrackingData
@@ -37,8 +39,14 @@ export function Tracking() {
     const popupVisible = state(false)
     const popupItems = state<PopupMenuItem[]>([])
     
-    const inputDiaryVisible = state(false)
-    const inputDiaryReadonly = state(false)
+    const inputTextDiaryVisible = state(false)
+    const inputTextDiaryReadonly = state(false)
+    const inputDiaryActor = state("")
+    const inputDiaryContent = state<any>(null)
+    
+    const inputMediaDiaryVisible = state(false)
+    const inputMediaDiaryReadonly = state(false)
+    const inputMediaDiaryData = state<DiaryMediaData | null>(null)
         
     const colorDatas = state<Record<string, DayData>>({})
     const trackingList = state<TrackingListItemData[]>([])
@@ -48,9 +56,6 @@ export function Tracking() {
     const inputText = state("")
     const inputNote = state("")
     const inputVisible = state(false)
-    
-    const inputDiaryActor = state("")
-    const inputDiaryContent = state<any>(null)
     
     const activeDate = state("")
     
@@ -96,8 +101,16 @@ export function Tracking() {
             inputDiaryActor.value = ""
             inputDiaryContent.value = null
             
-            inputDiaryVisible.value = true
-            inputDiaryReadonly.value = false
+            inputTextDiaryVisible.value = true
+            inputTextDiaryReadonly.value = false
+        }
+        else if (id === "add_media_diary") {
+            editDiaryId = null
+            
+            inputMediaDiaryData.value = null
+            
+            inputMediaDiaryVisible.value = true
+            inputMediaDiaryReadonly.value = false
         }
         else {
             const trackData = trackDatas.find(x => x.id === id)
@@ -175,6 +188,7 @@ export function Tracking() {
         if (editDiaryId) {
             await diaryEdit(editDiaryId, {
                 actor,
+                type: "text",
                 content,
                 date: new Date(selectedYear, selectedMonth, selectedDate),
             })
@@ -182,7 +196,9 @@ export function Tracking() {
         else {
             await diaryAdd({
                 actor,
+                type: "text",
                 content,
+                
                 date: new Date(selectedYear, selectedMonth, selectedDate),
             })
         }
@@ -190,25 +206,76 @@ export function Tracking() {
         await refreshColors()
         refreshDiaryList(selectedYear, selectedMonth, selectedDate)
         
-        inputDiaryVisible.value = false
+        inputTextDiaryVisible.value = false
+    }
+    
+    async function saveMediaDiary(actor: string, data: VideoData, gain: number, note: string) {
+        if (editDiaryId) {
+            await diaryEdit(editDiaryId, {
+                actor,
+                date: new Date(selectedYear, selectedMonth, selectedDate),
+                type: "video",
+                content: {
+                    duration: data.length,
+                    gain: gain,
+                    size: data.size,
+                    thumbnail: data.thumbnail,
+                    video: data.name,
+                    note,
+                },
+            })
+        }
+        else {
+            await diaryAdd({
+                actor,
+                date: new Date(selectedYear, selectedMonth, selectedDate),
+                type: "video",
+                content: {
+                    duration: data.length,
+                    gain: gain,
+                    size: data.size,
+                    thumbnail: data.thumbnail,
+                    video: data.name,
+                    note,
+                },
+            })
+        }
+        
+        await refreshColors()
+        refreshDiaryList(selectedYear, selectedMonth, selectedDate)
+        
+        inputMediaDiaryVisible.value = false
     }
     
     async function showDiary(d: DiaryListItemData) {
         inputDiaryActor.value = d.actor.id
         inputDiaryContent.value = d.diary.content
         
-        inputDiaryVisible.value = true
-        inputDiaryReadonly.value = true
+        if (d.diary.type === "text") {
+            inputTextDiaryVisible.value = true
+            inputTextDiaryReadonly.value = true
+        }
+        else if (d.diary.type === "video") {
+            getAndroidEnv()?.playVideo(d.diary.content.video, d.diary.content.gain)
+        }
     }
     
     async function editDiary(d: DiaryListItemData) {
         editDiaryId = d.diary.id
         
-        inputDiaryActor.value = d.actor.id
-        inputDiaryContent.value = d.diary.content
-        
-        inputDiaryVisible.value = true
-        inputDiaryReadonly.value = false
+        if (d.diary.type === "text") {
+            inputDiaryActor.value = d.actor.id
+            inputDiaryContent.value = d.diary.content
+            
+            inputTextDiaryVisible.value = true
+            inputTextDiaryReadonly.value = false
+        }
+        else if (d.diary.type === "video") {
+            inputMediaDiaryData.value = d.diary
+            
+            inputMediaDiaryVisible.value = true
+            inputMediaDiaryReadonly.value = false
+        }
     }
     
     async function deleteDiary(d: DiaryListItemData) {
@@ -234,6 +301,7 @@ export function Tracking() {
         
         popupItems.value = [
             { kind: "item", id: "add_diary", text: "Add Diary" },
+            { kind: "item", id: "add_media_diary", text: "Add Media Diary" },
             { kind: "divider" },
             ...trackDatas.map(x => ({
                 kind: "item",
@@ -349,13 +417,21 @@ export function Tracking() {
             onMonthChanged={monthChanged}
         />
         
-        {inputDiaryVisible.value && (
+        {inputTextDiaryVisible.value && (
             <DiaryInput
-                onCancel={() => inputDiaryVisible.value = false}
+                onCancel={() => inputTextDiaryVisible.value = false}
                 onSave={saveDiary}
-                readonly={inputDiaryReadonly.value}
+                readonly={inputTextDiaryReadonly.value}
                 actor={inputDiaryActor.value}
                 content={inputDiaryContent.value}
+            />
+        )}
+        
+        {inputMediaDiaryVisible.value && (
+            <MediaDiaryInput
+                onCancel={() => inputMediaDiaryVisible.value = false}
+                onSave={saveMediaDiary}
+                data={inputMediaDiaryData.value ?? undefined}
             />
         )}
         
@@ -397,31 +473,12 @@ export function Tracking() {
             ))}
             
             {foreach(diaryList, d => (
-                <div
-                    class="flex flex-col px-3 py-2 bg-white/80 active:bg-white/60 rounded-lg shadow-lg"
-                    onclick={() => showDiary(d)}
-                >
-                    <div class="flex items-center gap-1">
-                        <div
-                            class={`w-[20px] h-[20px] mr-1 icon-[mingcute--diary-fill]`}
-                            style={{ background: d.actor.color }}
-                        />
-                        <span class="text-sm mr-1">{d.actor.name}</span>
-                        <span class="text-sm">{d.actor.emoji}</span>
-                        
-                        <div class="flex-1"/>
-                        
-                        <IconButton
-                            onclick={stop(() => deleteDiary(d))}
-                            icon="icon-[material-symbols--delete]"
-                        />
-                        
-                        <IconButton
-                            onclick={stop(() => editDiary(d))}
-                            icon="icon-[material-symbols--edit]"
-                        />
-                    </div>
-                </div>
+                <DiaryList
+                    data={d}
+                    onShow={() => showDiary(d)}
+                    onEdit={() => editDiary(d)}
+                    onDelete={() => deleteDiary(d)}
+                />
             ))}
         </div>
         
@@ -455,5 +512,75 @@ export function Tracking() {
                 <Button onclick={inputSave}>Simpan</Button>
             </div>
         </Popup>
+    </div>
+}
+
+function DiaryList(props: {
+    data: DiaryListItemData,
+    onShow: () => void,
+    onDelete: () => void,
+    onEdit: () => void,
+}) {
+    const expanded = state(false)
+    
+    function toggleExpand() {
+        expanded.value = !expanded.value
+    }
+    
+    return <div
+        class="flex flex-col px-3 py-2 bg-white/80 active:bg-white/60 rounded-lg shadow-lg"
+        onclick={props.onShow}
+    >
+        <div class="flex items-center gap-1">
+            <div
+                class={twMerge(
+                    "w-[20px] h-[20px] mr-1",
+                    props.data.diary.type === "video" ? "icon-[tabler--video-filled]" : "icon-[mingcute--diary-fill]"
+                )}
+                style={{ background: props.data.actor.color }}
+            />
+            <span class="text-sm mr-1">{props.data.actor.name}</span>
+            <span class="text-sm">{props.data.actor.emoji}</span>
+            
+            <div class="flex-1"/>
+            
+            {props.data.diary.type === "video" && (
+                <IconButton
+                    onclick={stop(toggleExpand)}
+                    icon="icon-[mingcute--right-line]"
+                    class={twMerge(
+                        "text-xl transition-transform",
+                        expanded.value ? "rotate-90" : ""
+                    )}
+                />
+            )}
+            
+            <IconButton
+                onclick={stop(props.onDelete)}
+                icon="icon-[material-symbols--delete]"
+            />
+            
+            <IconButton
+                onclick={stop(props.onEdit)}
+                icon="icon-[material-symbols--edit]"
+            />
+        </div>
+        
+        {props.data.diary.type === "video" && <>
+            {props.data.diary.content.note && (
+                <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{props.data.diary.content.note}</div>
+            )}
+        
+            {expanded.value && (
+                <img
+                    src={envAsAndroidFileUrl(props.data.diary.content.thumbnail)}
+                    class="self-center rounded-lg mt-1"
+                    style={{
+                        maxWidth: `${window.innerWidth * 0.3}px`,
+                        maxHeight: `${window.innerWidth * 0.4}px`,
+                    }}
+                />
+            )}
+        </>}
     </div>
 }

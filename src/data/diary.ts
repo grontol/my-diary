@@ -3,14 +3,32 @@ import { StoreName } from "@/data/type.js"
 import { dateRefineFromImport } from "@/utils/date.js"
 import { v4 } from "uuid"
 
-export type DiaryData = {
+export type DiaryCommonData = {
     id: string
     actor: string
     date: Date
+}
+
+export type DiaryTextData = DiaryCommonData & {
+    type: "text"
     content: any
 }
 
-export type DiaryInputData = Omit<DiaryData, 'id'>
+export type DiaryMediaData = DiaryCommonData & {
+    type: "video"
+    content: {
+        video: string
+        thumbnail: string
+        duration: number
+        size: number
+        gain: number
+        note?: string
+    }
+}
+
+export type DiaryData = DiaryTextData | DiaryMediaData
+
+export type DiaryInputData = Omit<DiaryTextData, 'id'> | Omit<DiaryMediaData, 'id'>
 
 const storeName: StoreName = "diary"
 

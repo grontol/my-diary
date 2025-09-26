@@ -46,9 +46,6 @@ export function DiaryInput(props: {
             theme: "snow",
             readOnly: props.readonly ?? false,
             modules: {
-                // toolbar: [
-                //     [{ header: [1, 2, false] }, 'bold', 'italic', 'underline', { 'list': 'ordered'}, { 'list': 'bullet' }],
-                // ],
                 toolbar: "#toolbar"
             },
         })

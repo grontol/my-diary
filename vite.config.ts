@@ -6,9 +6,8 @@ import { transformJsxPlugin } from "./src/lib/pang/jsx-transform.js"
 
 export default defineConfig({
     root: "./",
-    // base: "/my-diary",
     build: {
-        outDir: "./docs"
+        outDir: "./build"
     },
     plugins: [
         tailwindcss(),
@@ -16,17 +15,10 @@ export default defineConfig({
             typescript: true,
         }),
         transformJsxPlugin(),
-        // VitePWA({
-        //     manifest: {
-        //         name: "My Diary",
-        //         short_name: "MyDiary",
-        //         description: "My Diary App",
-        //     }
-        // })
     ],
     server: {
         watch: {
-            ignored: ["**/be/**"]
+            ignored: ["**/android/**"]
         }
     },
     resolve: {
