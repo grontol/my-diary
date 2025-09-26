@@ -5,10 +5,10 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -36,10 +36,12 @@ class WebViewHelper(
 ) {
     private val FILE_CHOOSER_REQUEST_CODE = 1001
     private val RECORD_VIDEO_REQUEST_CODE = 1234
+    private val UPLOAD_VIDEO_REQUEST_CODE = 1666
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private var videoUri: Uri? = null
     private var recordVideoCbId: String? = null
+    private var uploadVideoCbId: String? = null
     private var compressVideoCbId: String? = null
 
     init {
@@ -173,6 +175,14 @@ class WebViewHelper(
             }
 
             @JavascriptInterface
+            fun uploadVideo(cbId: String) {
+                uploadVideoCbId = cbId
+                val intent = Intent(Intent.ACTION_GET_CONTENT)
+                intent.setType("video/*")
+                context.startActivityForResult(intent, UPLOAD_VIDEO_REQUEST_CODE)
+            }
+
+            @JavascriptInterface
             fun compressVideo(name: String, cbId: String) {
                 compressVideoCbId = cbId
 
@@ -205,6 +215,45 @@ class WebViewHelper(
                 intent.data = videoUri
                 intent.putExtra("gain", gain)
                 context.startActivity(intent)
+            }
+
+            @JavascriptInterface
+            fun deleteUnusedMedia() {
+                val dir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+
+                dir?.list()?.let { files ->
+                    val diaries = DbRepo.getAllDiaries()
+                    val toRemove = mutableListOf<String>(*files)
+
+                    for (diary in diaries) {
+                        if (diary.type == DiaryType.Video) {
+                            val content = diary.content.asJsonObject
+
+                            val video = content.get("video").asString
+                            val thumbnail = content.get("thumbnail").asString
+
+                            toRemove.remove(video)
+                            toRemove.remove(thumbnail)
+                        }
+                    }
+
+                    for (f in toRemove) {
+                        val file = getMovieDirFile(f)
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
+                }
+            }
+
+            @JavascriptInterface
+            fun deleteMedia(medias: Array<String>) {
+                for (media in medias) {
+                    val file = getMovieDirFile(media)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                }
             }
         }, "AndroidEnv")
 
@@ -256,6 +305,33 @@ class WebViewHelper(
         }
     }
 
+    private fun videoUploadProgress(success: Boolean, progress: Double, outputFile: File?) {
+        uploadVideoCbId?.let { cbId ->
+            val videoData = if (progress >= 1 && outputFile != null) {
+                val thumbnailFile = getMovieDirFile(outputFile.name.replace(".mp4", "_thumb.png"))
+
+                JSONObject.quote(
+                    gson.toJson(
+                        mapOf(
+                            "name" to outputFile.name,
+                            "length" to VideoUtils.getDuration(outputFile),
+                            "size" to outputFile.length(),
+                            "thumbnail" to if (VideoUtils.createThumbnail(
+                                    outputFile,
+                                    thumbnailFile
+                                )
+                            ) thumbnailFile.name else null
+                        )
+                    )
+                )
+            } else "null"
+
+            webView.post {
+                webView.evaluateJavascript("callFn('${cbId}', $success, $progress, $videoData)",null)
+            }
+        }
+    }
+
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
             if (resultCode == RESULT_OK && data != null) {
@@ -269,73 +345,20 @@ class WebViewHelper(
         else if (requestCode == RECORD_VIDEO_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 videoRecordingDone(true)
-//                videoUri?.let { uri ->
-//                    val file = File(uri.path!!)
-//                    val originalFile = File(
-//                        context.getExternalFilesDir(Environment.DIRECTORY_MOVIES),
-//                        file.name,
-//                    )
-
-//                    Toast.makeText(this, file.absolutePath, Toast.LENGTH_LONG).show()
-//
-//                    val compressedFile = File(
-//                        getExternalFilesDir(Environment.DIRECTORY_MOVIES),
-//                        file.name.replace(".mp4", "_compressed.mp4"),
-//                    )
-//
-//                    val commands = arrayOf(
-//                        "-i", originalFile.absolutePath,
-//                        "-vf", "scale='min(720,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
-//                        "-r", "15",
-//                        "-c:v", "libx264",
-//                        "-crf", "30",
-//                        "-preset", "veryfast",
-//                        "-c:a", "aac", "-b:a", "64k",
-//                        "-movflags", "+faststart",
-//                        compressedFile.absolutePath
-//                    )
-//
-//                    val retriever = MediaMetadataRetriever()
-//                    retriever.setDataSource(originalFile.absolutePath)
-//                    val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-//                    val durationMs = durationStr?.toLongOrNull() ?: 0L
-//                    retriever.release()
-//
-//                    FFmpegKit.executeWithArgumentsAsync(commands, { session ->
-//                        val returnCode = session.returnCode
-//                        if (ReturnCode.isSuccess(returnCode)) {
-//                            if (originalFile.exists()) {
-//                                val deleted = originalFile.delete()
-//
-//                                runOnUiThread {
-//                                    Toast.makeText(
-//                                        this@MainActivity,
-//                                        "Original deleted: $deleted",
-//                                        Toast.LENGTH_SHORT
-//                                    ).show()
-//                                }
-//                            }
-//                        } else {
-//                            runOnUiThread {
-//                                Toast.makeText(
-//                                    this@MainActivity,
-//                                    session.logsAsString,
-//                                    Toast.LENGTH_LONG
-//                                ).show()
-//                            }
-//                        }
-//                    }, {
-//
-//                    }, { stat ->
-//                        val progress = if (durationMs > 0) {
-//                            stat.time / durationMs
-//                        } else 0.0
-//
-//                        Log.d("XXXXXX", progress.toString())
-//                    })
-//                }
             } else {
                 videoRecordingDone(false)
+            }
+        }
+        else if (requestCode == UPLOAD_VIDEO_REQUEST_CODE) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                val outputFile = getMovieDirFile("diary_${System.currentTimeMillis()}.mp4")
+
+                VideoUtils.copy(context, data.data!!, outputFile) { progress ->
+                    videoUploadProgress(true, progress, outputFile)
+                }
+            }
+            else {
+                videoUploadProgress(false, 0.0, null)
             }
         }
     }

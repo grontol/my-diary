@@ -24,8 +24,11 @@ type AndroidEnv = {
     isServerRunning(): boolean
     
     recordVideo(cb: (success: boolean, video?: VideoData) => void): void
+    uploadVideo(cb: (success: boolean, progress: number, video?: VideoData) => void): void
     compressVideo(name: string, cb: (success: boolean, completed: boolean, progress: number, newSize: number) => void): void
     playVideo(name: string, gain: number): void
+    deleteUnusedMedia(): void
+    deleteMedia(medias: string[]): void
 }
 
 const w = window as any
@@ -33,22 +36,16 @@ const rawAndroidEnv = w['AndroidEnv']
 
 const __callbacks: Record<string, { cb: any, shouldDelete: (...args: any[]) => boolean, mapArgs?: (args: any[]) => any[] }> = {}
 
-const androidEnv: AndroidEnv | undefined = rawAndroidEnv === undefined ? undefined : {
-    isAndroid: rawAndroidEnv['isAndroid'].bind(rawAndroidEnv),
-    export: rawAndroidEnv['export'].bind(rawAndroidEnv),
+const androidEnv: AndroidEnv | undefined = (() => {
+    if (rawAndroidEnv === undefined) return undefined
     
-    repoGetAll: rawAndroidEnv['repoGetAll'].bind(rawAndroidEnv),
-    repoGet: rawAndroidEnv['repoGet'].bind(rawAndroidEnv),
-    repoInsert: rawAndroidEnv['repoInsert'].bind(rawAndroidEnv),
-    repoUpdate: rawAndroidEnv['repoUpdate'].bind(rawAndroidEnv),
-    repoDelete: rawAndroidEnv['repoDelete'].bind(rawAndroidEnv),
-    repoImport: rawAndroidEnv['repoImport'].bind(rawAndroidEnv),
+    const env: AndroidEnv = {} as any
     
-    startServer: rawAndroidEnv['startServer'].bind(rawAndroidEnv),
-    stopServer: rawAndroidEnv['stopServer'].bind(rawAndroidEnv),
-    isServerRunning: rawAndroidEnv['isServerRunning'].bind(rawAndroidEnv),
+    for (const k in rawAndroidEnv) {
+        (env as any)[k] = rawAndroidEnv[k].bind(rawAndroidEnv)
+    }
     
-    recordVideo(cb) {
+    env.recordVideo = (cb) => {
         const id = v4()
         __callbacks[id] = {
             cb,
@@ -59,8 +56,22 @@ const androidEnv: AndroidEnv | undefined = rawAndroidEnv === undefined ? undefin
         }
         
         rawAndroidEnv.recordVideo(id)
-    },
-    compressVideo(name, cb) {
+    }
+    
+    env.uploadVideo = (cb) => {
+        const id = v4()
+        __callbacks[id] = {
+            cb,
+            shouldDelete: (success: boolean, progress: number) => !success || progress >= 1,
+            mapArgs(args) {
+                return [args[0], args[1], JSON.parse(args[2])]
+            },
+        }
+        
+        rawAndroidEnv.uploadVideo(id)
+    }
+    
+    env.compressVideo = (name, cb) => {
         const id = v4()
         __callbacks[id] = {
             cb,
@@ -68,9 +79,10 @@ const androidEnv: AndroidEnv | undefined = rawAndroidEnv === undefined ? undefin
         }
         
         rawAndroidEnv.compressVideo(name, id)
-    },
-    playVideo: rawAndroidEnv['playVideo'].bind(rawAndroidEnv),
-}
+    }
+    
+    return env
+})()
 
 w.callFn = (id: string, ...args: any[]) => {
     const cb = __callbacks[id]
@@ -93,6 +105,8 @@ export function getAndroidEnv(): AndroidEnv | undefined {
 export function envIsAndroidMode(): boolean {
     return androidEnv?.isAndroid() ?? false
 }
+
+console.log(androidEnv)
 
 export function envIsRemoteMode(): boolean {
     return w.clientMode ?? false//!envIsAndroidMode()

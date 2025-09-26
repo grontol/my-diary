@@ -285,6 +285,14 @@ export function Tracking() {
             type: "question",
             async onOk() {
                 await diaryDelete(d.diary.id)
+                
+                if (d.diary.type === "video") {
+                    getAndroidEnv()?.deleteMedia([
+                        d.diary.content.video,
+                        d.diary.content.thumbnail,
+                    ])
+                }
+                
                 await refreshColors()
                 refreshDiaryList(selectedYear, selectedMonth, selectedDate)
             },

@@ -33,15 +33,6 @@ class VideoActivity : AppCompatActivity() {
 
         window.statusBarColor = "#000000".toColorInt()
 
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-////            window.insetsController!!.hide(WindowInsetsController.Type.systemBars())
-//        } else {
-//            // For older Android versions
-//            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-//                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-//                    or View.SYSTEM_UI_FLAG_FULLSCREEN)
-//        }
-
         playerView = findViewById(R.id.player_view)
 
         val videoUri = intent.data
@@ -115,7 +106,6 @@ class CustomRenderersFactory(
     context: Context,
     private val audioProcessors: Array<AudioProcessor>
 ) : DefaultRenderersFactory(context) {
-
     override fun buildAudioSink(
         context: Context,
         enableFloatOutput: Boolean,

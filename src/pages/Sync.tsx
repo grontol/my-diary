@@ -72,6 +72,15 @@ export function Sync() {
         isServerRunning.value = false
     }
     
+    function deleteUnusedMedia() {
+        getAndroidEnv()?.deleteUnusedMedia()
+        showAlert({
+            title: "Done",
+            message: "Deleting is done",
+            type: "info"
+        })
+    }
+    
     return <div class="flex flex-col p-6 gap-4">
         {envIsAndroidMode() && (
             <div>This is Android</div>
@@ -89,6 +98,8 @@ export function Sync() {
                 )}                
             </>
         )}
+        
+        <Button onclick={deleteUnusedMedia}>Delete Unused Media</Button>
     </div>
 }
 

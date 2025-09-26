@@ -1,9 +1,13 @@
 package com.grtlab.mydiary
 
+import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import java.io.File
+import java.io.FileOutputStream
+import kotlin.concurrent.thread
 
 object VideoUtils {
     fun compress(originalFile: File, compressedFile: File, cb: (success: Boolean, completed: Boolean, progress: Double) -> Unit) {
@@ -37,6 +41,47 @@ object VideoUtils {
 
             cb(true, false, progress)
         })
+    }
+
+    fun copy(context: Context, input: Uri, output: File, onProgress: (progress: Double) -> Unit) {
+        thread {
+            val resolver = context.contentResolver
+            val descriptor = resolver.openFileDescriptor(input, "r")
+            val totalSize = descriptor?.statSize ?: -1L
+            descriptor?.close()
+
+            var lastTime = System.currentTimeMillis()
+
+            resolver.openInputStream(input)?.use { ins ->
+                FileOutputStream(output).use { outs ->
+                    val buffer = ByteArray(8 * 1024)
+                    var bytesCopied = 0L
+                    var bytes = ins.read(buffer)
+
+                    while (bytes >= 0) {
+                        outs.write(buffer, 0, bytes)
+                        bytesCopied += bytes
+
+                        if (totalSize > 0) {
+                            if (bytesCopied == totalSize) {
+                                onProgress(1.0)
+                            }
+                            else {
+                                val delta = System.currentTimeMillis() - lastTime
+
+                                if (delta >= 500) {
+                                    val progress = bytesCopied.toDouble() / totalSize
+                                    onProgress(progress)
+                                    lastTime = System.currentTimeMillis()
+                                }
+                            }
+                        }
+
+                        bytes = ins.read(buffer)
+                    }
+                }
+            }
+        }
     }
 
     fun createThumbnail(videoFile: File, thumbnailFile: File): Boolean {

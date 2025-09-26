@@ -2,25 +2,27 @@ import { showAlert } from "@/components/Alert.jsx";
 import { Button, IconButton } from "@/components/Button.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
-import { DiaryData, DiaryMediaData } from "@/data/diary.js";
+import { DiaryMediaData } from "@/data/diary.js";
 import { envAsAndroidFileUrl, getAndroidEnv, VideoData } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { derived, state } from "@pang/reactive.js";
 import { twMerge } from "tailwind-merge";
 
-const sampleVideo: VideoData = {
-    "name": "diary_1758818832292.mp4",
-    "length": 54020,
-    "size": 135889000,
-    "thumbnail": "diary_1758818832292_thumb.png"
-}
+// const sampleVideo: VideoData = {
+//     "name": "diary_1758906146885.mp4",
+//     "length": 54020,
+//     "size": 135889000,
+//     "thumbnail": "diary_1758906146885_thumb.png"
+// }
 
 export function MediaDiaryInput(props: {
     onCancel: () => void
     onSave: (acrot: string, data: VideoData, gain: number, note: string) => void
     data?: DiaryMediaData
 }) {
+    const isEdit = derived(() => !!props.data)
+    
     const actors = state<ActorData[]>([])
     const selectedActor = state(props.data?.actor ?? "")
     const videoData = state<VideoData | null>(props.data ? {
@@ -29,11 +31,18 @@ export function MediaDiaryInput(props: {
         size: props.data.content.size,
         thumbnail: props.data.content.thumbnail,
     } : null)
+    
     const compressing = state(false)
     const compressError = state(false)
     const compressProgress = state(0)
+    
+    const uploading = state(false)
+    const uploadProgress = state(0)
+    
     const gain = state(props.data?.content.gain ?? 0)
     const note = state(props.data?.content.note ?? "")
+    
+    const colledtedVideoDatas: VideoData[] = []
     
     function save() {
         if (!videoData.value) {
@@ -45,10 +54,41 @@ export function MediaDiaryInput(props: {
             return
         }
         
+        const toDelete: string[] = []
+        
+        if (!props.data) {
+            // Kalau save dan add, hapus semua collected videos kecuali yang terakhir
+            
+            for (let a = 0; a < colledtedVideoDatas.length - 1; a++) {
+                toDelete.push(colledtedVideoDatas[a].name)
+                toDelete.push(colledtedVideoDatas[a].thumbnail)
+            }
+        }
+        else {
+            // Kalau save dan edit, hapus semua collected videos kecuali yang terakhir + original video (kalau ada video baru)
+            
+            if (colledtedVideoDatas.length > 0) {
+                toDelete.push(props.data.content.video)
+                toDelete.push(props.data.content.thumbnail)
+            }
+            
+            for (let a = 0; a < colledtedVideoDatas.length - 1; a++) {
+                toDelete.push(colledtedVideoDatas[a].name)
+                toDelete.push(colledtedVideoDatas[a].thumbnail)
+            }
+        }
+        
+        getAndroidEnv()?.deleteMedia(toDelete)
+        
         props.onSave(selectedActor.value, videoData.value, gain.value, note.value)
     }
     
     function cancel() {
+        // Kalau cancel, hapus semua collected videos
+        getAndroidEnv()?.deleteMedia(
+            colledtedVideoDatas.map(x => [x.name, x.thumbnail]).flatMap(x => x)
+        )
+        
         props.onCancel?.()
     }
     
@@ -56,6 +96,33 @@ export function MediaDiaryInput(props: {
         getAndroidEnv()?.recordVideo((success, video) => {
             if (success) {
                 videoData.value = video ?? null
+                
+                if (video) {
+                    colledtedVideoDatas.push(video)
+                }
+            }
+        })
+    }
+    
+    function uploadVideo() {
+        uploading.value = true
+        
+        getAndroidEnv()?.uploadVideo((success, progress, video) => {
+            if (success) {
+                if (progress >= 1) {
+                    uploading.value = false
+                    videoData.value = video ?? null
+                    
+                    if (video) {
+                        colledtedVideoDatas.push(video)
+                    }
+                }
+                else {
+                    uploadProgress.value = progress
+                }
+            }
+            else {
+                uploading.value = false
             }
         })
     }
@@ -95,6 +162,17 @@ export function MediaDiaryInput(props: {
         
     }
     
+    function deleteVideo() {
+        showAlert({
+            title: "Konfirmasi",
+            message: "Delete video?",
+            type: "question",
+            onOk() {                
+                videoData.value = null
+            },
+        })
+    }
+    
     function playVideo() {
         if (videoData.value) {
             getAndroidEnv()?.playVideo(videoData.value.name, gain.value)
@@ -104,10 +182,6 @@ export function MediaDiaryInput(props: {
     function actorChanged(e: Event) {
         // @ts-ignore
         selectedActor.value = e.target?.value ?? ''
-    }
-    
-    function uploadVideo() {
-        readFile()
     }
     
     function comingSoon() {
@@ -164,25 +238,21 @@ export function MediaDiaryInput(props: {
                             <span class="icon-[solar--play-bold] text-white text-4xl"></span>
                         </div>
                         
+                        <IconButton
+                            icon="icon-[mdi--trash] text-white text-xl"
+                            class="absolute top-1 right-1 bg-red-400 active:bg-red-500"
+                            onclick={deleteVideo}
+                        />
+                        
                         <span
                             class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
                         >{videoLengthText(videoData.value.length)}</span>
                     </div>
                     
-                    <span class="font-bold">{fileSizeText(videoData.value.size)}</span>
+                    <span class="font-bold">{videoData.value.name} - {fileSizeText(videoData.value.size)}</span>
                     
                     {compressing.value ? <>
-                        <div
-                            class="self-stretch bg-gray-400 mx-6 rounded-full h-5 relative mt-2"
-                        >
-                            <div
-                                class="bg-fuchsia-500 h-5 rounded-full"
-                                style={{
-                                    width: `${compressProgress.value * 100}%`
-                                }}
-                            />
-                        </div>
-                        
+                        <ProgressBar value={compressProgress.value}/>
                         <span>Compressing</span>
                         
                         <Button class="mt-2" onclick={cancelCompress}>Cancel Compression</Button>
@@ -196,12 +266,36 @@ export function MediaDiaryInput(props: {
                         onChange={v => gain.value = v}
                     />
                 </div>
+            ) : uploading.value ? (
+                <div class="flex flex-col items-center mt-4">
+                    <ProgressBar value={uploadProgress.value}/>
+                    <span>Upload</span>
+                </div>
             ) : (
-                <div class="flex flex-col p-6 gap-2">
-                    <Button onclick={recordVideo}>Record Video</Button>
-                    <Button onclick={comingSoon}>Take Photo</Button>
-                    <Button onclick={uploadVideo}>Upload Video</Button>
-                    <Button onclick={comingSoon}>Upload Photo</Button>
+                <div class="grid grid-cols-2 p-6 gap-2">
+                    <MainIcon
+                        text="Record Video"
+                        icon="icon-[fluent-color--video-32] text-7xl"
+                        onclick={recordVideo}
+                    />
+                    
+                    <MainIcon
+                        text="Take Photo"
+                        icon="icon-[flat-color-icons--photo-reel] text-7xl"
+                        onclick={comingSoon}
+                    />
+                    
+                    <MainIcon
+                        text="Upload Video"
+                        icon="icon-[fluent-color--cloud-32] text-7xl"
+                        onclick={uploadVideo}
+                    />
+                    
+                    <MainIcon
+                        text="Upload Photo"
+                        icon="icon-[fluent-color--camera-24] text-7xl"
+                        onclick={comingSoon}
+                    />
                 </div>
             )}
         </div>
@@ -219,6 +313,38 @@ export function MediaDiaryInput(props: {
                 onclick={save}
             />
         </div>
+    </div>
+}
+
+function MainIcon(props: {
+    text: string
+    icon: string
+    onclick?: () => void
+}) {
+    return <button
+        class="flex flex-col items-center bg-fuchsia-600/10 rounded-xl py-2 active:bg-fuchsia-600/20 transition-colors"
+        onclick={props.onclick}
+    >
+        <span
+            class={twMerge(
+                "",
+                props.icon,
+            )}
+        />
+        <span class="text-sm font-bold text-fuchsia-700">{props.text}</span>
+    </button>
+}
+
+function ProgressBar(props: { value: number }) {
+    return <div
+        class="self-stretch bg-gray-400 mx-6 rounded-full h-5 relative mt-2"
+    >
+        <div
+            class="bg-fuchsia-500 h-5 rounded-full"
+            style={{
+                width: `${props.value * 100}%`
+            }}
+        />
     </div>
 }
 

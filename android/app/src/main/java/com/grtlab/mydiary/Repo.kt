@@ -115,6 +115,17 @@ class Model<T>(
         }
     }
 
+    fun find(db: SQLiteDatabase, where: String, values: Array<String>): T? {
+        return db.query(table, null, where, values, null, null, null).use {
+            if (it.moveToNext()) {
+                toModel(it)
+            }
+            else {
+                null
+            }
+        }
+    }
+
     fun insert(db: SQLiteDatabase, data: T) {
         val values = ContentValues().apply { toValues(this, data) }
         db.insert(table, null, values)
@@ -262,6 +273,11 @@ object DbRepo {
         return gson.toJson(model.get(db, id))
     }
 
+    fun find(storeName: String, where: String, values: Array<String>): String {
+        val model = models[storeName] ?: throw Exception("No model $storeName")
+        return gson.toJson(model.find(db, where, values))
+    }
+
     fun insert(storeName: String, json: String, from: DataChangedFrom, clientId: String?) {
         when (storeName) {
             "actor" -> {
@@ -351,6 +367,10 @@ object DbRepo {
         }
 
         _changedEvent.postValue(DataChangedEvent(from, storeName, clientId))
+    }
+
+    fun getAllDiaries(): List<DiaryData> {
+        return diaryModel.getAll(db)
     }
 }
 
