@@ -14,7 +14,7 @@ export type DiaryTextData = DiaryCommonData & {
     content: any
 }
 
-export type DiaryMediaData = DiaryCommonData & {
+export type DiaryVideoData = DiaryCommonData & {
     type: "video"
     content: {
         video: string
@@ -26,9 +26,19 @@ export type DiaryMediaData = DiaryCommonData & {
     }
 }
 
-export type DiaryData = DiaryTextData | DiaryMediaData
+export type DiaryPhotoData = DiaryCommonData & {
+    type: "photo"
+    content: {
+        image: string
+        size: number
+        note?: string
+    }
+}
 
-export type DiaryInputData = Omit<DiaryTextData, 'id'> | Omit<DiaryMediaData, 'id'>
+export type DiaryMediaData = DiaryVideoData | DiaryPhotoData
+export type DiaryData = DiaryTextData | DiaryVideoData | DiaryPhotoData
+
+export type DiaryInputData = Omit<DiaryTextData, 'id'> | Omit<DiaryVideoData, 'id'> | Omit<DiaryPhotoData, 'id'>
 
 const storeName: StoreName = "diary"
 

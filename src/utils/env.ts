@@ -2,10 +2,17 @@ import { StoreName } from "@/data/type.js"
 import { v4 } from "uuid"
 
 export type VideoData = {
+    type: "video"
     name: string
     size: number
     length: number
     thumbnail: string
+}
+
+export type PhotoData = {
+    type: "photo"
+    name: string
+    size: number
 }
 
 type AndroidEnv = {
@@ -27,6 +34,11 @@ type AndroidEnv = {
     uploadVideo(cb: (success: boolean, progress: number, video?: VideoData) => void): void
     compressVideo(name: string, cb: (success: boolean, completed: boolean, progress: number, newSize: number) => void): void
     playVideo(name: string, gain: number): void
+    
+    takePhoto(cb: (success: boolean, photo?: PhotoData) => void): void
+    uploadPhoto(cb: (success: boolean, progress: number, video?: PhotoData) => void): void
+    viewPhoto(name: string): void
+    
     deleteUnusedMedia(): void
     deleteMedia(medias: string[]): void
 }
@@ -51,7 +63,7 @@ const androidEnv: AndroidEnv | undefined = (() => {
             cb,
             shouldDelete: () => true,
             mapArgs(args) {
-                return [args[0], JSON.parse(args[1])]
+                return [args[0], { ...JSON.parse(args[1]), type: "video" }]
             },
         }
         
@@ -64,7 +76,7 @@ const androidEnv: AndroidEnv | undefined = (() => {
             cb,
             shouldDelete: (success: boolean, progress: number) => !success || progress >= 1,
             mapArgs(args) {
-                return [args[0], args[1], JSON.parse(args[2])]
+                return [args[0], args[1], { ...JSON.parse(args[2]), type: "video" }]
             },
         }
         
@@ -79,6 +91,32 @@ const androidEnv: AndroidEnv | undefined = (() => {
         }
         
         rawAndroidEnv.compressVideo(name, id)
+    }
+    
+    env.takePhoto = (cb) => {
+        const id = v4()
+        __callbacks[id] = {
+            cb,
+            shouldDelete: () => true,
+            mapArgs(args) {
+                return [args[0], { ...JSON.parse(args[1]), type: "photo" }]
+            },
+        }
+        
+        rawAndroidEnv.takePhoto(id)
+    }
+    
+    env.uploadPhoto = (cb) => {
+        const id = v4()
+        __callbacks[id] = {
+            cb,
+            shouldDelete: (success: boolean, progress: number) => !success || progress >= 1,
+            mapArgs(args) {
+                return [args[0], args[1], { ...JSON.parse(args[2]), type: "photo" }]
+            },
+        }
+        
+        rawAndroidEnv.uploadPhoto(id)
     }
     
     return env
@@ -105,8 +143,6 @@ export function getAndroidEnv(): AndroidEnv | undefined {
 export function envIsAndroidMode(): boolean {
     return androidEnv?.isAndroid() ?? false
 }
-
-console.log(androidEnv)
 
 export function envIsRemoteMode(): boolean {
     return w.clientMode ?? false//!envIsAndroidMode()

@@ -5,10 +5,11 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -26,6 +27,9 @@ import com.google.gson.Gson
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileOutputStream
+import androidx.core.graphics.scale
+import kotlin.concurrent.thread
 
 private val gson = Gson()
 
@@ -37,12 +41,19 @@ class WebViewHelper(
     private val FILE_CHOOSER_REQUEST_CODE = 1001
     private val RECORD_VIDEO_REQUEST_CODE = 1234
     private val UPLOAD_VIDEO_REQUEST_CODE = 1666
+    private val TAKE_PHOTO_REQUEST_CODE = 1235
+    private val UPLOAD_PHOTO_REQUEST_CODE = 1667
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
     private var videoUri: Uri? = null
     private var recordVideoCbId: String? = null
     private var uploadVideoCbId: String? = null
     private var compressVideoCbId: String? = null
+
+    private var photoUri: Uri? = null
+    private var takePhotoCbId: String? = null
+    private var uploadPhotoCbId: String? = null
 
     init {
         val assetLoader = WebViewAssetLoader.Builder()
@@ -189,7 +200,7 @@ class WebViewHelper(
                 val videoFile = getMovieDirFile(name)
                 val compressedFile = getMovieDirFile(videoFile.name.replace(".mp4", "_compressed.mp4"))
 
-                VideoUtils.compress(videoFile, compressedFile) { success, completed, progress ->
+                MediaUtils.compress(videoFile, compressedFile) { success, completed, progress ->
                     var newSize = 0L
 
                     if (completed) {
@@ -218,6 +229,48 @@ class WebViewHelper(
             }
 
             @JavascriptInterface
+            fun takePhoto(cbId: String) {
+                takePhotoCbId = cbId
+                val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+
+                val photoFile = getMovieDirFile("diary_${System.currentTimeMillis()}_img.jpg")
+                photoUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    photoFile
+                )
+
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+
+                context.startActivityForResult(intent, TAKE_PHOTO_REQUEST_CODE)
+            }
+
+            @JavascriptInterface
+            fun uploadPhoto(cbId: String) {
+                uploadPhotoCbId = cbId
+                val intent = Intent(Intent.ACTION_GET_CONTENT)
+                intent.setType("image/*")
+                context.startActivityForResult(intent, UPLOAD_PHOTO_REQUEST_CODE)
+            }
+
+            @JavascriptInterface
+            fun viewPhoto(name: String) {
+                val photoFile = getMovieDirFile(name)
+                val photoUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    photoFile
+                )
+
+                val intent = Intent(context, PhotoActivity::class.java)
+                intent.data = photoUri
+                context.startActivity(intent)
+            }
+
+            @JavascriptInterface
             fun deleteUnusedMedia() {
                 val dir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
 
@@ -234,6 +287,11 @@ class WebViewHelper(
 
                             toRemove.remove(video)
                             toRemove.remove(thumbnail)
+                        }
+                        else if (diary.type == DiaryType.Photo) {
+                            val content = diary.content.asJsonObject
+                            val image = content.get("image").asString
+                            toRemove.remove(image)
                         }
                     }
 
@@ -257,8 +315,8 @@ class WebViewHelper(
             }
         }, "AndroidEnv")
 
-        webView.loadUrl("http://192.168.100.21:5173")
-//        webView.loadUrl("https://appassets.androidplatform.net/index.html")
+//        webView.loadUrl("http://192.168.100.21:5173")
+        webView.loadUrl("https://appassets.androidplatform.net/index.html")
 
         DbRepo.changedEvent.observe(context) {
             dataChanged(it)
@@ -284,9 +342,9 @@ class WebViewHelper(
 
                 val videoData = JSONObject.quote(gson.toJson(mapOf(
                     "name" to originalFile.name,
-                    "length" to VideoUtils.getDuration(originalFile),
+                    "length" to MediaUtils.getDuration(originalFile),
                     "size" to originalFile.length(),
-                    "thumbnail" to if (VideoUtils.createThumbnail(originalFile, thumbnailFile)) thumbnailFile.name else null
+                    "thumbnail" to if (MediaUtils.createThumbnail(originalFile, thumbnailFile)) thumbnailFile.name else null
                 )))
 
                 webView.evaluateJavascript("callFn('${cbId}', true, $videoData)", null)
@@ -314,9 +372,9 @@ class WebViewHelper(
                     gson.toJson(
                         mapOf(
                             "name" to outputFile.name,
-                            "length" to VideoUtils.getDuration(outputFile),
+                            "length" to MediaUtils.getDuration(outputFile),
                             "size" to outputFile.length(),
-                            "thumbnail" to if (VideoUtils.createThumbnail(
+                            "thumbnail" to if (MediaUtils.createThumbnail(
                                     outputFile,
                                     thumbnailFile
                                 )
@@ -332,20 +390,71 @@ class WebViewHelper(
         }
     }
 
+    private fun takePhotoDone(resultOk: Boolean) {
+        takePhotoCbId?.let { cbId ->
+            if (resultOk && photoUri != null) {
+                thread {
+                    val file = getMovieDirFile(File(photoUri!!.path!!).name)
+                    MediaUtils.compressPhoto(context, file)
+
+                    val photoData = JSONObject.quote(
+                        gson.toJson(
+                            mapOf(
+                                "name" to file.name,
+                                "size" to file.length(),
+                            )
+                        )
+                    )
+
+                    webView.post {
+                        webView.evaluateJavascript("callFn('${cbId}', true, $photoData)", null)
+                    }
+                }
+            }
+            else {
+                webView.evaluateJavascript("callFn('${cbId}', false)", null)
+            }
+        }
+    }
+
+    private fun photoUploadProgress(success: Boolean, progress: Double, outputFile: File?) {
+        uploadPhotoCbId?.let { cbId ->
+            val photoData = if (progress >= 1 && outputFile != null) {
+                MediaUtils.compressPhoto(context, outputFile)
+
+                JSONObject.quote(
+                    gson.toJson(
+                        mapOf(
+                            "name" to outputFile.name,
+                            "size" to outputFile.length(),
+                        )
+                    )
+                )
+            } else "null"
+
+            webView.post {
+                webView.evaluateJavascript("callFn('${cbId}', $success, $progress, $photoData)",null)
+            }
+        }
+    }
+
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
             if (resultCode == RESULT_OK && data != null) {
                 val result = arrayOf(data.dataString!!.toUri())
                 filePathCallback?.onReceiveValue(result)
-            } else {
+            }
+            else {
                 filePathCallback?.onReceiveValue(null)
             }
+
             filePathCallback = null
         }
         else if (requestCode == RECORD_VIDEO_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 videoRecordingDone(true)
-            } else {
+            }
+            else {
                 videoRecordingDone(false)
             }
         }
@@ -353,12 +462,32 @@ class WebViewHelper(
             if (resultCode == RESULT_OK && data?.data != null) {
                 val outputFile = getMovieDirFile("diary_${System.currentTimeMillis()}.mp4")
 
-                VideoUtils.copy(context, data.data!!, outputFile) { progress ->
+                MediaUtils.copy(context, data.data!!, outputFile) { progress ->
                     videoUploadProgress(true, progress, outputFile)
                 }
             }
             else {
                 videoUploadProgress(false, 0.0, null)
+            }
+        }
+        else if (requestCode == TAKE_PHOTO_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                takePhotoDone(true)
+            }
+            else {
+                takePhotoDone(false)
+            }
+        }
+        else if (requestCode == UPLOAD_PHOTO_REQUEST_CODE) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                val outputFile = getMovieDirFile("diary_${System.currentTimeMillis()}_img.jpg")
+
+                MediaUtils.copy(context, data.data!!, outputFile) { progress ->
+                    photoUploadProgress(true, progress, outputFile)
+                }
+            }
+            else {
+                photoUploadProgress(false, 0.0, null)
             }
         }
     }

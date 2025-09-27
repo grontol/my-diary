@@ -3,34 +3,45 @@ import { Button, IconButton } from "@/components/Button.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
 import { DiaryMediaData } from "@/data/diary.js";
-import { envAsAndroidFileUrl, getAndroidEnv, VideoData } from "@/utils/env.js";
+import { envAsAndroidFileUrl, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { derived, state } from "@pang/reactive.js";
 import { twMerge } from "tailwind-merge";
 
-// const sampleVideo: VideoData = {
-//     "name": "diary_1758906146885.mp4",
-//     "length": 54020,
-//     "size": 135889000,
-//     "thumbnail": "diary_1758906146885_thumb.png"
+// const sampleMedia: PhotoData = {
+//     type: "photo",
+//     name: "diary_1758999736181_img.jpg",
+//     size: 135889000,
 // }
 
 export function MediaDiaryInput(props: {
     onCancel: () => void
-    onSave: (acrot: string, data: VideoData, gain: number, note: string) => void
+    onSave: (acrot: string, data: VideoData | PhotoData, gain: number, note: string) => void
     data?: DiaryMediaData
 }) {
-    const isEdit = derived(() => !!props.data)
-    
     const actors = state<ActorData[]>([])
     const selectedActor = state(props.data?.actor ?? "")
-    const videoData = state<VideoData | null>(props.data ? {
-        name: props.data.content.video,
-        length: props.data.content.duration,
-        size: props.data.content.size,
-        thumbnail: props.data.content.thumbnail,
-    } : null)
+    const mediaData = state<VideoData | PhotoData | null>(null)
+    
+    if (props.data) {
+        if (props.data.type === "video") {
+            mediaData.value = {
+                type: "video",
+                name: props.data.content.video,
+                length: props.data.content.duration,
+                size: props.data.content.size,
+                thumbnail: props.data.content.thumbnail,
+            }
+        }
+        else {
+            mediaData.value = {
+                type: "photo",
+                name: props.data.content.image,
+                size: props.data.content.size,
+            }
+        }
+    }
     
     const compressing = state(false)
     const compressError = state(false)
@@ -39,16 +50,16 @@ export function MediaDiaryInput(props: {
     const uploading = state(false)
     const uploadProgress = state(0)
     
-    const gain = state(props.data?.content.gain ?? 0)
+    const gain = state(props.data?.type === "video" ? props.data.content.gain : 0)
     const note = state(props.data?.content.note ?? "")
     
-    const colledtedVideoDatas: VideoData[] = []
+    const colledtedMedias: (VideoData | PhotoData)[] = []
     
     function save() {
-        if (!videoData.value) {
+        if (!mediaData.value) {
             showAlert({
                 title: "No...",
-                message: "Isi data dulu dong!",
+                message: "Isi media dulu dong!",
                 type: "info"
             })
             return
@@ -59,34 +70,49 @@ export function MediaDiaryInput(props: {
         if (!props.data) {
             // Kalau save dan add, hapus semua collected videos kecuali yang terakhir
             
-            for (let a = 0; a < colledtedVideoDatas.length - 1; a++) {
-                toDelete.push(colledtedVideoDatas[a].name)
-                toDelete.push(colledtedVideoDatas[a].thumbnail)
+            for (let a = 0; a < colledtedMedias.length - 1; a++) {
+                const m = colledtedMedias[a]
+                
+                toDelete.push(m.name)
+                
+                if (m.type === "video") {
+                    toDelete.push(m.thumbnail)
+                }
             }
         }
         else {
             // Kalau save dan edit, hapus semua collected videos kecuali yang terakhir + original video (kalau ada video baru)
             
-            if (colledtedVideoDatas.length > 0) {
-                toDelete.push(props.data.content.video)
-                toDelete.push(props.data.content.thumbnail)
+            if (colledtedMedias.length > 0) {                
+                if (props.data.type === "video") {
+                    toDelete.push(props.data.content.video)
+                    toDelete.push(props.data.content.thumbnail)
+                }
+                else {
+                    toDelete.push(props.data.content.image)
+                }
             }
             
-            for (let a = 0; a < colledtedVideoDatas.length - 1; a++) {
-                toDelete.push(colledtedVideoDatas[a].name)
-                toDelete.push(colledtedVideoDatas[a].thumbnail)
+            for (let a = 0; a < colledtedMedias.length - 1; a++) {
+                const m = colledtedMedias[a]
+                
+                toDelete.push(m.name)
+                
+                if (m.type === "video") {
+                    toDelete.push(m.thumbnail)
+                }
             }
         }
         
         getAndroidEnv()?.deleteMedia(toDelete)
         
-        props.onSave(selectedActor.value, videoData.value, gain.value, note.value)
+        props.onSave(selectedActor.value, mediaData.value, gain.value, note.value)
     }
     
     function cancel() {
         // Kalau cancel, hapus semua collected videos
         getAndroidEnv()?.deleteMedia(
-            colledtedVideoDatas.map(x => [x.name, x.thumbnail]).flatMap(x => x)
+            colledtedMedias.map(x => x.type === "video" ? [x.name, x.thumbnail] : [x.name]).flatMap(x => x)
         )
         
         props.onCancel?.()
@@ -95,10 +121,10 @@ export function MediaDiaryInput(props: {
     function recordVideo() {
         getAndroidEnv()?.recordVideo((success, video) => {
             if (success) {
-                videoData.value = video ?? null
+                mediaData.value = video ?? null
                 
                 if (video) {
-                    colledtedVideoDatas.push(video)
+                    colledtedMedias.push(video)
                 }
             }
         })
@@ -111,10 +137,10 @@ export function MediaDiaryInput(props: {
             if (success) {
                 if (progress >= 1) {
                     uploading.value = false
-                    videoData.value = video ?? null
+                    mediaData.value = video ?? null
                     
                     if (video) {
-                        colledtedVideoDatas.push(video)
+                        colledtedMedias.push(video)
                     }
                 }
                 else {
@@ -128,12 +154,12 @@ export function MediaDiaryInput(props: {
     }
     
     function compressVideo() {
-        if (!videoData.value) return
+        if (!mediaData.value || mediaData.value.type !== "video") return
         
         compressError.value = false
         compressing.value = true
         
-        getAndroidEnv()?.compressVideo(videoData.value.name, (success, completed, progress, newSize) => {
+        getAndroidEnv()?.compressVideo(mediaData.value.name, (success, completed, progress, newSize) => {
             if (!success) {
                 compressing.value = false
                 compressError.value = true
@@ -141,9 +167,9 @@ export function MediaDiaryInput(props: {
             else if (completed) {
                 compressing.value = false
                 
-                if (videoData.value) {
-                    videoData.value.size = newSize
-                    videoData.trigger()
+                if (mediaData.value) {
+                    mediaData.value.size = newSize
+                    mediaData.trigger()
                     
                     showAlert({
                         title: "Completed",
@@ -162,34 +188,64 @@ export function MediaDiaryInput(props: {
         
     }
     
-    function deleteVideo() {
+    function takePhoto() {
+        getAndroidEnv()?.takePhoto((success, photo) => {
+            if (success) {
+                mediaData.value = photo ?? null
+                
+                if (photo) {
+                    colledtedMedias.push(photo)
+                }
+            }
+        })
+    }
+    
+    function uploadPhoto() {
+        uploading.value = true
+        
+        getAndroidEnv()?.uploadPhoto((success, progress, photo) => {
+            if (success) {
+                if (progress >= 1) {
+                    uploading.value = false
+                    mediaData.value = photo ?? null
+                    
+                    if (photo) {
+                        colledtedMedias.push(photo)
+                    }
+                }
+                else {
+                    uploadProgress.value = progress
+                }
+            }
+            else {
+                uploading.value = false
+            }
+        })
+    }
+    
+    function deleteMedia() {
         showAlert({
             title: "Konfirmasi",
             message: "Delete video?",
             type: "question",
             onOk() {                
-                videoData.value = null
+                mediaData.value = null
             },
         })
     }
     
-    function playVideo() {
-        if (videoData.value) {
-            getAndroidEnv()?.playVideo(videoData.value.name, gain.value)
+    function playMedia() {
+        if (mediaData.value?.type === "video") {
+            getAndroidEnv()?.playVideo(mediaData.value.name, gain.value)
+        }
+        else if (mediaData.value?.type === "photo") {
+            getAndroidEnv()?.viewPhoto(mediaData.value.name)
         }
     }
     
     function actorChanged(e: Event) {
         // @ts-ignore
         selectedActor.value = e.target?.value ?? ''
-    }
-    
-    function comingSoon() {
-        showAlert({
-            title: "Coming Soon",
-            message: "Feature will come soon",
-            type: "info"
-        })
     }
     
     onMount(async () => {
@@ -222,49 +278,59 @@ export function MediaDiaryInput(props: {
                 noStyle={true}
             />
             
-            {videoData.value ? (
+            {mediaData.value ? (
                 <div class="flex flex-col items-center mt-4">
                     <div class="relative self-center">
                         <img
-                            src={envAsAndroidFileUrl(videoData.value.thumbnail)}
+                            src={envAsAndroidFileUrl(mediaData.value.type === "video" ? mediaData.value.thumbnail : mediaData.value.name)}
                             width={`${window.innerWidth * 0.5}px`}
                             class="rounded-xl"
                         />
                         
                         <div
                             class="absolute bg-black/10 inset-0 flex items-center justify-center active:bg-black/20 rounded-xl"
-                            onclick={playVideo}
+                            onclick={playMedia}
                         >
-                            <span class="icon-[solar--play-bold] text-white text-4xl"></span>
+                            {mediaData.value.type === "video" ? (
+                                <span class="icon-[solar--play-bold] text-white text-4xl"></span>
+                            ) : (
+                                <span class="icon-[ion--open] text-white text-4xl"></span>
+                            )}
                         </div>
                         
                         <IconButton
                             icon="icon-[mdi--trash] text-white text-xl"
                             class="absolute top-1 right-1 bg-red-400 active:bg-red-500"
-                            onclick={deleteVideo}
+                            onclick={deleteMedia}
                         />
                         
-                        <span
-                            class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
-                        >{videoLengthText(videoData.value.length)}</span>
+                        {mediaData.value.type === "video" && (
+                            <span
+                                class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
+                            >{videoLengthText(mediaData.value.length)}</span>
+                        )}
                     </div>
                     
-                    <span class="font-bold">{videoData.value.name} - {fileSizeText(videoData.value.size)}</span>
+                    <span class="font-bold">{mediaData.value.name} - {fileSizeText(mediaData.value.size)}</span>
                     
-                    {compressing.value ? <>
-                        <ProgressBar value={compressProgress.value}/>
-                        <span>Compressing</span>
-                        
-                        <Button class="mt-2" onclick={cancelCompress}>Cancel Compression</Button>
-                    </> : (
-                        <Button class="mt-2" onclick={compressVideo}>Compress</Button>
+                    {mediaData.value.type === "video" && (
+                        <>
+                            {compressing.value ? <>
+                                <ProgressBar value={compressProgress.value}/>
+                                <span>Compressing</span>
+                                
+                                <Button class="mt-2" onclick={cancelCompress}>Cancel Compression</Button>
+                            </> : (
+                                <Button class="mt-2" onclick={compressVideo}>Compress</Button>
+                            )}
+                            
+                            <GainSlider
+                                class="mt-4"
+                                value={gain.value}
+                                onChange={v => gain.value = v}
+                            />
+                        </>
                     )}
-                    
-                    <GainSlider
-                        class="mt-4"
-                        value={gain.value}
-                        onChange={v => gain.value = v}
-                    />
                 </div>
             ) : uploading.value ? (
                 <div class="flex flex-col items-center mt-4">
@@ -282,7 +348,7 @@ export function MediaDiaryInput(props: {
                     <MainIcon
                         text="Take Photo"
                         icon="icon-[flat-color-icons--photo-reel] text-7xl"
-                        onclick={comingSoon}
+                        onclick={takePhoto}
                     />
                     
                     <MainIcon
@@ -294,7 +360,7 @@ export function MediaDiaryInput(props: {
                     <MainIcon
                         text="Upload Photo"
                         icon="icon-[fluent-color--camera-24] text-7xl"
-                        onclick={comingSoon}
+                        onclick={uploadPhoto}
                     />
                 </div>
             )}

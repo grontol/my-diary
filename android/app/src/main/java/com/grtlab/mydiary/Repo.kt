@@ -53,6 +53,8 @@ enum class DiaryType {
     Text,
     @SerializedName("video")
     Video,
+    @SerializedName("photo")
+    Photo,
 }
 
 data class DiaryData(
@@ -191,6 +193,7 @@ val diaryModel = Model("diary", { c ->
         type = when (c.stringOrNull("type")) {
             "text" -> DiaryType.Text
             "video" -> DiaryType.Video
+            "photo" -> DiaryType.Photo
             else -> DiaryType.Text
         },
         content = gson.fromJson(c.string("content"), JsonElement::class.java),
@@ -202,6 +205,7 @@ val diaryModel = Model("diary", { c ->
     put("type", when (it.type) {
         DiaryType.Text -> "text"
         DiaryType.Video -> "video"
+        DiaryType.Photo -> "photo"
     })
     put("content", gson.toJson(it.content))
 })

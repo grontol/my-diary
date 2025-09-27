@@ -1,15 +1,20 @@
 package com.grtlab.mydiary
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.core.graphics.scale
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.concurrent.thread
 
-object VideoUtils {
+object MediaUtils {
     fun compress(originalFile: File, compressedFile: File, cb: (success: Boolean, completed: Boolean, progress: Double) -> Unit) {
         val commands = arrayOf(
             "-i", originalFile.absolutePath,
@@ -41,6 +46,34 @@ object VideoUtils {
 
             cb(true, false, progress)
         })
+    }
+
+    fun compressPhoto(context: Context, file: File, maxWidth: Int = 1280, maxHeight: Int = 1280, quality: Int = 75) {
+        val compressedFile = File(file.parentFile, file.name.replace(".jpg", "_compressed.jpg"))
+
+        var bitmapOri = BitmapFactory.decodeFile(file.absolutePath)
+        bitmapOri = correctOrientation(context, file, bitmapOri)
+
+        val ratio = minOf(
+            maxWidth.toFloat() / bitmapOri.width,
+            maxHeight.toFloat() / bitmapOri.height,
+            1f,
+        )
+
+        val newWidth = (bitmapOri.width * ratio).toInt()
+        val newHeight = (bitmapOri.height * ratio).toInt()
+
+        val bitmapResized = bitmapOri.scale(newWidth, newHeight)
+
+        FileOutputStream(compressedFile).use { out ->
+            bitmapResized.compress(Bitmap.CompressFormat.JPEG, quality, out)
+        }
+
+        bitmapOri.recycle()
+        if (bitmapResized != bitmapOri) bitmapResized.recycle()
+
+        file.delete()
+        compressedFile.renameTo(file)
     }
 
     fun copy(context: Context, input: Uri, output: File, onProgress: (progress: Double) -> Unit) {
@@ -105,5 +138,29 @@ object VideoUtils {
         retriever.release()
 
         return durationMs
+    }
+
+    fun correctOrientation(context: Context, file: File, bitmap: Bitmap): Bitmap {
+        val exif = ExifInterface(file)
+
+        val orientation = exif.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )
+
+        val matrix = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+        }
+
+        return if (!matrix.isIdentity) {
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } else {
+            bitmap
+        }
     }
 }

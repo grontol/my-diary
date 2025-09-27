@@ -5,13 +5,13 @@ import { Popup } from "@/components/Popup.jsx";
 import { PopupMenu, PopupMenuItem } from "@/components/PopupMenu.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
-import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll, DiaryMediaData } from "@/data/diary.js";
+import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll, DiaryInputData, DiaryMediaData } from "@/data/diary.js";
 import { TrackData, trackDataGetAll } from "@/data/track_data.js";
 import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, trackingDataGetAll } from "@/data/tracking.js";
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
 import { MediaDiaryInput } from "@/pages/MediaDiaryInput.jsx";
 import { dateFormatDateToString, dateFormatToString } from "@/utils/date.js";
-import { envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, VideoData } from "@/utils/env.js";
+import { envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
 import { foreach } from "@pang/core.js";
 import { stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
@@ -209,9 +209,11 @@ export function Tracking() {
         inputTextDiaryVisible.value = false
     }
     
-    async function saveMediaDiary(actor: string, data: VideoData, gain: number, note: string) {
-        if (editDiaryId) {
-            await diaryEdit(editDiaryId, {
+    async function saveMediaDiary(actor: string, data: VideoData | PhotoData, gain: number, note: string) {
+        let inputData: DiaryInputData
+        
+        if (data.type === "video") {
+            inputData = {
                 actor,
                 date: new Date(selectedYear, selectedMonth, selectedDate),
                 type: "video",
@@ -223,22 +225,26 @@ export function Tracking() {
                     video: data.name,
                     note,
                 },
-            })
+            }
         }
         else {
-            await diaryAdd({
+            inputData = {
                 actor,
                 date: new Date(selectedYear, selectedMonth, selectedDate),
-                type: "video",
+                type: "photo",
                 content: {
-                    duration: data.length,
-                    gain: gain,
+                    image: data.name,
                     size: data.size,
-                    thumbnail: data.thumbnail,
-                    video: data.name,
                     note,
                 },
-            })
+            }
+        }
+        
+        if (editDiaryId) {
+            await diaryEdit(editDiaryId, inputData)
+        }
+        else {
+            await diaryAdd(inputData)
         }
         
         await refreshColors()
@@ -258,6 +264,9 @@ export function Tracking() {
         else if (d.diary.type === "video") {
             getAndroidEnv()?.playVideo(d.diary.content.video, d.diary.content.gain)
         }
+        else if (d.diary.type === "photo") {
+            getAndroidEnv()?.viewPhoto(d.diary.content.image)
+        }
     }
     
     async function editDiary(d: DiaryListItemData) {
@@ -270,7 +279,7 @@ export function Tracking() {
             inputTextDiaryVisible.value = true
             inputTextDiaryReadonly.value = false
         }
-        else if (d.diary.type === "video") {
+        else if (d.diary.type === "video" || d.diary.type === "photo") {
             inputMediaDiaryData.value = d.diary
             
             inputMediaDiaryVisible.value = true
@@ -290,6 +299,11 @@ export function Tracking() {
                     getAndroidEnv()?.deleteMedia([
                         d.diary.content.video,
                         d.diary.content.thumbnail,
+                    ])
+                }
+                else if (d.diary.type === "photo") {
+                    getAndroidEnv()?.deleteMedia([
+                        d.diary.content.image,
                     ])
                 }
                 
@@ -543,7 +557,11 @@ function DiaryList(props: {
             <div
                 class={twMerge(
                     "w-[20px] h-[20px] mr-1",
-                    props.data.diary.type === "video" ? "icon-[tabler--video-filled]" : "icon-[mingcute--diary-fill]"
+                    props.data.diary.type === "video"
+                        ? "icon-[tabler--video-filled]"
+                    : props.data.diary.type === "photo"
+                        ? "icon-[ic--round-photo]"
+                        : "icon-[mingcute--diary-fill]"
                 )}
                 style={{ background: props.data.actor.color }}
             />
@@ -552,7 +570,7 @@ function DiaryList(props: {
             
             <div class="flex-1"/>
             
-            {props.data.diary.type === "video" && (
+            {(props.data.diary.type === "video" || props.data.diary.type === "photo") && (
                 <IconButton
                     onclick={stop(toggleExpand)}
                     icon="icon-[mingcute--right-line]"
@@ -574,14 +592,14 @@ function DiaryList(props: {
             />
         </div>
         
-        {props.data.diary.type === "video" && <>
+        {(props.data.diary.type === "video" || props.data.diary.type === "photo") && <>
             {props.data.diary.content.note && (
                 <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{props.data.diary.content.note}</div>
             )}
         
             {expanded.value && (
                 <img
-                    src={envAsAndroidFileUrl(props.data.diary.content.thumbnail)}
+                    src={envAsAndroidFileUrl(props.data.diary.type === "video" ? props.data.diary.content.thumbnail : props.data.diary.content.image)}
                     class="self-center rounded-lg mt-1"
                     style={{
                         maxWidth: `${window.innerWidth * 0.3}px`,

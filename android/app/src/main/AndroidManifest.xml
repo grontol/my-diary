@@ -33,6 +33,11 @@
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         />
 
+        <activity
+            android:name=".PhotoActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        />
+
         <service
             android:name=".WebServerService"
             android:enabled="true"
