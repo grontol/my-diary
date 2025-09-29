@@ -8,6 +8,8 @@ export type ResepData = {
     bahans: string[]
     tags: string[]
     content: any
+    done: boolean
+    rating: number
 }
 
 export type ResepInputData = Omit<ResepData, 'id'>

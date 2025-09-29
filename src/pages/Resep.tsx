@@ -1,5 +1,6 @@
 import { showAlert } from "@/components/Alert.jsx"
 import { Button, IconButton } from "@/components/Button.jsx"
+import { RatingView } from "@/components/RatingView.jsx"
 import { TextInput } from "@/components/TextInput.jsx"
 import { resepAdd, ResepData, resepDelete, resepEdit, resepGetAll } from "@/data/resep.js"
 import { envAddDataChangedListener } from "@/utils/env.js"
@@ -38,6 +39,8 @@ export function Resep() {
     const inputBahans = state<string[]>([])
     const inputTags = state<string[]>([])
     const inputContent = state<any | null>(null)
+    const inputDone = state<any | null>(null)
+    const inputRating = state<any | null>(null)
     const inputReadonly = state(false)
     
     let editId = ""
@@ -70,6 +73,8 @@ export function Resep() {
         inputBahans.value = []
         inputTags.value = []
         inputContent.value = null
+        inputDone.value = null
+        inputRating.value = null
         inputReadonly.value = false
         inputVisible.value = true
     }
@@ -81,6 +86,8 @@ export function Resep() {
         inputBahans.value = r.bahans
         inputTags.value = r.tags
         inputContent.value = r.content
+        inputDone.value = r.done
+        inputRating.value = r.rating
         inputReadonly.value = false
         inputVisible.value = true
     }
@@ -90,17 +97,21 @@ export function Resep() {
         inputBahans.value = r.bahans
         inputTags.value = r.tags
         inputContent.value = r.content
+        inputDone.value = r.done
+        inputRating.value = r.rating
         inputReadonly.value = true
         inputVisible.value = true
     }
     
-    async function save(name: string, bahans: string[], tags: string[], content: any) {
+    async function save(name: string, bahans: string[], tags: string[], content: any, done: boolean, rating: number) {
         if (editId) {
             await resepEdit(editId, {
                 name,
                 bahans,
                 tags,
-                content
+                content,
+                done,
+                rating,
             })
         }
         else {
@@ -108,7 +119,9 @@ export function Resep() {
                 name,
                 bahans,
                 tags,
-                content
+                content,
+                done,
+                rating,
             })
         }
         
@@ -181,6 +194,8 @@ export function Resep() {
                 bahans={inputBahans.value}
                 tags={inputTags.value}
                 content={inputContent.value}
+                done={inputDone.value}
+                rating={inputRating.value}
                 onCancel={cancel}
                 onSave={save}
                 readonly={inputReadonly.value}
@@ -208,6 +223,10 @@ function ResepItem(props: { data: ResepData, onRemove?: () => void, onEdit?: () 
             
             <span>{props.data.name}</span>
             
+            {props.data.done && (
+                <span class="icon-[mdi--checkbox-marked] text-xl text-green-600"/>
+            )}
+            
             <div class="flex-1"/>
             
             <IconButton
@@ -220,6 +239,14 @@ function ResepItem(props: { data: ResepData, onRemove?: () => void, onEdit?: () 
                 icon="icon-[material-symbols--edit]"
             />
         </div>
+        
+        {props.data.rating && (
+            <RatingView
+                class="ml-8"
+                value={props.data.rating}
+                size="sm"
+            />
+        )}
         
         {expanded.value && (
             <div
@@ -251,8 +278,10 @@ function ResepInput(props: {
     bahans?: string[]
     tags?: string[]
     content?: any
+    done?: boolean
+    rating?: number
     onCancel?: () => void,
-    onSave?: (name: string, bahans: string[], tags: string[], content: any) => void,
+    onSave?: (name: string, bahans: string[], tags: string[], content: any, done: boolean, rating: number) => void,
 }) {
     let editorEl: HTMLDivElement
     let quill: Quill
@@ -260,12 +289,14 @@ function ResepInput(props: {
     const name = state(props.name ?? "")
     const bahans = state(props.bahans?.join(", ") ?? "")
     const tags = state(props.tags?.join(", ") ?? "")
+    const done = state(props.done ?? false)
+    const rating = state(props.rating ?? 0)
     
     function save() {
         const splitBahans = bahans.value.split(",").map(x => x.split("\n")).flatMap(x => x).map(x => x.trim()).filter(x => !!x)
         const splitTags = tags.value.split(",").map(x => x.split("\n")).flatMap(x => x).map(x => x.trim()).filter(x => !!x)
         
-        props.onSave?.(name.value, splitBahans, splitTags, quill.getContents())
+        props.onSave?.(name.value, splitBahans, splitTags, quill.getContents(), done.value, rating.value)
     }
     
     function cancel() {
@@ -330,6 +361,29 @@ function ResepInput(props: {
                         oninput={v => tags.value = v}
                     />
                     
+                    <div class="h-[1px] bg-fuchsia-700"/>
+                    
+                    <button
+                        class="text-left flex items-center gap-1 px-3 py-2 active:bg-black/10"
+                        onclick={() => done.value = !done.value}
+                    >
+                        {done.value ? (
+                            <span class="icon-[mdi--checkbox-marked] text-xl"></span>
+                        ) : (
+                            <span class="icon-[mdi--checkbox-blank-outline] text-xl"></span>
+                        )}
+                        
+                        <span>Done</span>
+                    </button>
+                    
+                    <div class="h-[1px] bg-fuchsia-700"/>
+                    
+                    <div class="flex px-3 py-2 justify-center">
+                        <RatingView
+                            value={rating.value}
+                            onChange={v => rating.value = v}
+                        />
+                    </div>
                 </div>
             )}
             

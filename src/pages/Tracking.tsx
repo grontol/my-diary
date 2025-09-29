@@ -322,13 +322,15 @@ export function Tracking() {
         }
         
         popupItems.value = [
-            { kind: "item", id: "add_diary", text: "Add Diary" },
-            { kind: "item", id: "add_media_diary", text: "Add Media Diary" },
+            { kind: "item", id: "add_diary", text: "Diary", icon: "icon-[mingcute--diary-fill]", iconColor: "var(--color-blue-500)" },
+            { kind: "item", id: "add_media_diary", text: "Media Diary", icon: "icon-[material-symbols-light--media-link]", iconColor: "var(--color-pink-500)" },
             { kind: "divider" },
-            ...trackDatas.map(x => ({
+            ...trackDatas.sort((a, b) => a.name.localeCompare(b.name)).map(x => ({
                 kind: "item",
                 id: x.id,
-                text: x.name
+                text: x.name,
+                icon: x.shape,
+                iconColor: x.color,
             } satisfies PopupMenuItem))
         ]
     }
@@ -431,6 +433,12 @@ export function Tracking() {
     })
     
     return <div class="flex-1 flex flex-col select-none">
+        {/* <div class="fixed top-1 right-2">
+            <IconButton
+                icon="icon-[mdi--filter] text-xl"
+            />
+        </div> */}
+        
         <CalendarView
             datas={colorDatas.value}
             onDateLongTouch={dateLongTouch}

@@ -321,6 +321,7 @@ function DetailView(props: {
                             d.curMonth && props.selectedDate && props.selectedDate === dateFormatToString(props.year, props.month, d.date) ? "bg-fuchsia-300" : "",
                         )}
                         oncontextmenu={prevent(() => props.onLongTouch?.(d))}
+                        ondblclick={prevent(() => props.onLongTouch?.(d))}
                         onclick={() => props.onSelect?.(d)}
                     >                        
                         <span>{d.date}</span>

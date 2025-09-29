@@ -1,11 +1,14 @@
 import { foreach } from "@pang/core.js"
 import { self } from "@pang/event-utils.js"
-import { twMerge } from "tailwind-merge"
+import { derived } from "@pang/reactive.js"
+import { twJoin, twMerge } from "tailwind-merge"
 
 export type PopupMenuItem = {
     kind: "item"
     id: string
     text: string
+    icon?: string
+    iconColor?: string
 } | {
     kind: "divider"
 }
@@ -16,6 +19,8 @@ export function PopupMenu(props: {
     onClose: () => void,
     onSelect: (id: string) => void,
 }) {
+    const hasIcon = derived(() => props.items.some(x => x.kind === "item" && !!x.icon))
+    
     return <div
         class={twMerge(
             "fixed inset-0 bg-black/40 flex justify-center items-center",
@@ -27,9 +32,27 @@ export function PopupMenu(props: {
             {foreach(props.items, i => (
                 i.kind === "item" ? (
                     <div
-                        class="px-4 py-2 active:bg-black/10 transition-colors"
+                        class="px-4 py-2 flex items-center gap-2 active:bg-black/10 transition-colors"
                         onclick={() => props.onSelect(i.id)}
-                    >{i.text}</div>
+                    >
+                        {i.icon && (
+                            <span
+                                class={twJoin(
+                                    "text-gray-400",
+                                    i.icon,
+                                )}
+                                style={{
+                                    color: i.iconColor,
+                                }}
+                            />
+                        )}
+                        
+                        <span
+                            class={twMerge(
+                                hasIcon.value && !i.icon ? "ml-6" : ""
+                            )}
+                        >{i.text}</span>
+                    </div>
                 ) : (
                     <div
                         class="h-[1px] bg-gray-200"

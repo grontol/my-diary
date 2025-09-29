@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import androidx.core.database.getIntOrNull
 import androidx.core.database.getStringOrNull
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
@@ -81,6 +82,8 @@ data class ResepData(
     val bahans: List<String>,
     val tags: List<String>,
     val content: JsonElement,
+    val done: Boolean,
+    val rating: Int,
 )
 
 fun Cursor.string(column: String): String {
@@ -89,6 +92,14 @@ fun Cursor.string(column: String): String {
 
 fun Cursor.stringOrNull(column: String): String? {
     return this.getStringOrNull(this.getColumnIndexOrThrow(column))
+}
+
+fun Cursor.int(column: String): Int {
+    return this.getInt(this.getColumnIndexOrThrow(column))
+}
+
+fun Cursor.intOrNull(column: String): Int? {
+    return this.getIntOrNull(this.getColumnIndexOrThrow(column))
 }
 
 class Model<T>(
@@ -237,6 +248,8 @@ val resepModel = Model("resep", { c ->
         bahans = c.string("bahans").split(",").map { it.trim() }.filter { it.isNotEmpty() },
         tags = c.string("tags").split(",").map { it.trim() }.filter { it.isNotEmpty() },
         content = gson.fromJson(c.string("content"), JsonElement::class.java),
+        done = c.intOrNull("done") == 1,
+        rating = c.intOrNull("rating") ?: 0,
     )
 }, {
     put("id", it.id)
@@ -244,6 +257,8 @@ val resepModel = Model("resep", { c ->
     put("bahans", it.bahans.joinToString(", "))
     put("tags", it.tags.joinToString(", "))
     put("content", gson.toJson(it.content))
+    put("done", if (it.done) 1 else 0)
+    put("rating", it.rating)
 })
 
 object DbRepo {
@@ -378,8 +393,14 @@ object DbRepo {
     }
 }
 
-class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 2) {
-    override fun onCreate(db: SQLiteDatabase) {
+data class Migration(
+    val version: Int,
+    val exec: (db: SQLiteDatabase) -> Unit,
+    val rollback: ((db: SQLiteDatabase) -> Unit)? = null,
+)
+
+val migrations = listOf(
+    Migration(1, { db ->
         db.execSQL("""
             CREATE TABLE actor (
                 id TEXT PRIMARY KEY,
@@ -431,12 +452,31 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 2)
                 content TEXT
             )
         """.trimIndent())
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+    }),
+    Migration(2, { db ->
         db.execSQL("""
             ALTER TABLE diary ADD COLUMN type TEXT
         """.trimIndent())
+    }),
+    Migration(3, { db ->
+        db.execSQL("ALTER TABLE resep ADD COLUMN done INTEGER")
+        db.execSQL("ALTER TABLE resep ADD COLUMN rating INTEGER")
+    })
+)
+
+class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 3) {
+    override fun onCreate(db: SQLiteDatabase) {
+        migrations.filter { it.version == 1 }
+            .forEach {
+                it.exec(db)
+            }
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        migrations.filter { it.version > oldVersion && it.version <= newVersion }
+            .forEach {
+                it.exec(db)
+            }
     }
 
 }
