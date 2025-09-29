@@ -69,22 +69,75 @@ export function curtain({
     delay = 0,
     duration = 150,
     easing = easeDefault,
+    direction = 'vertical',
 }: {
     delay?: number
     duration?: number
     easing?: Easing,
+    direction?: 'vertical' | 'horizontal',
 } = {}): TransitionRunner {
     return (node) => {
-        const style = getComputedStyle(node)
         const el = node instanceof HTMLElement ? node as HTMLElement : null
+        
+        let originalSize = 0
+        let originalPaddingStart = 0
+        let originalPaddingEnd = 0
+        let originalMarginStart = 0
+        let originalMarginEnd = 0
+        let originalBorderStartSize = 0
+        let originalBorderEndSize = 0
+        
+        if (el) {
+            const computedStyle = getComputedStyle(el)
+            
+            if (direction === 'vertical') {
+                originalSize = parseFloat(computedStyle.height)
+                originalPaddingStart = parseFloat(computedStyle.paddingTop)
+                originalPaddingEnd = parseFloat(computedStyle.paddingBottom)
+                originalMarginStart = parseFloat(computedStyle.marginTop)
+                originalMarginEnd = parseFloat(computedStyle.marginBottom)
+                originalBorderStartSize = parseFloat(computedStyle.borderTopWidth)
+                originalBorderEndSize = parseFloat(computedStyle.borderBottomWidth)
+            }
+            else {
+                originalSize = parseFloat(computedStyle.width)
+                originalPaddingStart = parseFloat(computedStyle.paddingLeft)
+                originalPaddingEnd = parseFloat(computedStyle.paddingRight)
+                originalMarginStart = parseFloat(computedStyle.marginLeft)
+                originalMarginEnd = parseFloat(computedStyle.marginRight)
+                originalBorderStartSize = parseFloat(computedStyle.borderLeftWidth)
+                originalBorderEndSize = parseFloat(computedStyle.borderRightWidth)
+            }
+        }
         
         return {
             delay,
             duration,
             easing,
             frame(t) {
-                return {
-                    scale: t,
+                if (direction === 'vertical') {
+                    return {
+                        minHeight: `${originalSize * t}px`,
+                        height: `${originalSize * t}px`,
+                        paddingTop: `${originalPaddingStart * t}px`,
+                        paddingBottom: `${originalPaddingEnd * t}px`,
+                        marginTop: `${originalMarginStart * t}px`,
+                        marginBottom: `${originalMarginEnd * t}px`,
+                        borderTopWidth: `${originalBorderStartSize * t}px`,
+                        borderBottomWidth: `${originalBorderEndSize * t}px`,
+                    }
+                }
+                else {
+                    return {
+                        minWidth: `${originalSize * t}px`,
+                        width: `${originalSize * t}px`,
+                        paddingLeft: `${originalPaddingStart * t}px`,
+                        paddingRight: `${originalPaddingEnd * t}px`,
+                        marginLeft: `${originalMarginStart * t}px`,
+                        marginRight: `${originalMarginEnd * t}px`,
+                        borderLeftWidth: `${originalBorderStartSize * t}px`,
+                        borderRightWidth: `${originalBorderEndSize * t}px`,
+                    }
                 }
             },
         }
