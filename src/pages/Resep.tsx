@@ -8,6 +8,7 @@ import { foreach } from "@pang/core.js"
 import { stop } from "@pang/event-utils.js"
 import { onDestroy, onMount } from "@pang/lifecycle.js"
 import { derived, state } from "@pang/reactive.js"
+import { curtain } from "@pang/transition.js"
 import Quill from "quill"
 import "quill/dist/quill.core.css"
 import "quill/dist/quill.snow.css"
@@ -251,6 +252,7 @@ function ResepItem(props: { data: ResepData, onRemove?: () => void, onEdit?: () 
         {expanded.value && (
             <div
                 class="flex flex-col text-sm px-2 my-2"
+                transition={curtain()}
             >
                 <span class="font-bold">Bahan :</span>
                 {foreach(props.data.bahans, b => (

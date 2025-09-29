@@ -6,6 +6,7 @@ import { TrackDataView } from "@/pages/TrackData.jsx";
 import { Tracking } from "@/pages/Tracking.jsx";
 import { RouterConfig } from "@pang/router.js";
 import { Home } from "./pages/Home.jsx";
+import { Test } from "@/pages/Test.jsx";
 
 export const routes: RouterConfig[] = [
     {
@@ -35,6 +36,10 @@ export const routes: RouterConfig[] = [
             {
                 path: 'sync',
                 component: Sync,
+            },
+            {
+                path: 'test',
+                component: Test,
             },
         ]
     },

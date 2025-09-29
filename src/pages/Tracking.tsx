@@ -16,6 +16,7 @@ import { foreach } from "@pang/core.js";
 import { stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { state } from "@pang/reactive.js";
+import { curtain } from "@pang/transition.js";
 import { twMerge } from "tailwind-merge";
 
 type TrackingListItemData = {
@@ -606,14 +607,19 @@ function DiaryList(props: {
             )}
         
             {expanded.value && (
-                <img
-                    src={envAsAndroidFileUrl(props.data.diary.type === "video" ? props.data.diary.content.thumbnail : props.data.diary.content.image)}
-                    class="self-center rounded-lg mt-1"
-                    style={{
-                        maxWidth: `${window.innerWidth * 0.3}px`,
-                        maxHeight: `${window.innerWidth * 0.4}px`,
-                    }}
-                />
+                <div
+                    class="self-center mt-1 overflow-hidden"
+                    transition={curtain()}
+                >
+                    <img
+                        src={envAsAndroidFileUrl(props.data.diary.type === "video" ? props.data.diary.content.thumbnail : props.data.diary.content.image)}
+                        class="rounded-lg"
+                        style={{
+                            maxWidth: `${window.innerWidth * 0.3}px`,
+                            maxHeight: `${window.innerWidth * 0.4}px`,
+                        }}
+                    />
+                </div>
             )}
         </>}
     </div>

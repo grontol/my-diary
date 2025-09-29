@@ -1,0 +1,1 @@
+git diff origin/master..HEAD -- src/lib/pang > pang.patch
