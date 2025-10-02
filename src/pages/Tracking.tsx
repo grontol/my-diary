@@ -3,6 +3,7 @@ import { Button, IconButton } from "@/components/Button.jsx";
 import { CalendarView, DayData } from "@/components/CalendarView.jsx";
 import { Popup } from "@/components/Popup.jsx";
 import { PopupMenu, PopupMenuItem } from "@/components/PopupMenu.jsx";
+import { SwipeableView } from "@/components/SwipeableView.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
 import { diaryAdd, DiaryData, diaryDelete, diaryEdit, diaryGetAll, DiaryInputData, DiaryMediaData } from "@/data/diary.js";
@@ -10,13 +11,13 @@ import { TrackData, trackDataGetAll } from "@/data/track_data.js";
 import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, trackingDataGetAll } from "@/data/tracking.js";
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
 import { MediaDiaryInput } from "@/pages/MediaDiaryInput.jsx";
-import { dateFormatDateToString, dateFormatToString } from "@/utils/date.js";
+import { dateFormatDateToString, dateFormatToString, dateFormatToTime } from "@/utils/date.js";
 import { envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
+import { formatVideoLengthText } from "@/utils/format.js";
 import { foreach } from "@pang/core.js";
-import { stop } from "@pang/event-utils.js";
+import { prevent, stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
-import { state } from "@pang/reactive.js";
-import { curtain } from "@pang/transition.js";
+import { effect, state } from "@pang/reactive.js";
 import { twMerge } from "tailwind-merge";
 
 type TrackingListItemData = {
@@ -37,8 +38,14 @@ export function Tracking() {
     let actorDatas: ActorData[] = []
     let actorDatasById = new Map<string, ActorData>()
     
+    const now = new Date()
+    const year = state(now.getFullYear())
+    const month = state(now.getMonth())
+    
     const popupVisible = state(false)
     const popupItems = state<PopupMenuItem[]>([])
+    
+    const settingsPopupVisible = state(false)
     
     const inputTextDiaryVisible = state(false)
     const inputTextDiaryReadonly = state(false)
@@ -59,6 +66,11 @@ export function Tracking() {
     const inputVisible = state(false)
     
     const activeDate = state("")
+    
+    const galleryMode = state(localStorage.getItem("__dt_galleryMode") === "true")
+    effect(() => {
+        localStorage.setItem("__dt_galleryMode", galleryMode.value ? "true" : "false")
+    })
     
     let selectedYear = 0
     let selectedMonth = 0
@@ -93,6 +105,30 @@ export function Tracking() {
     function monthChanged() {
         activeDate.value = ""
         trackingList.value = []
+    }
+    
+    function onIncMonth() {
+        if (month.value === 11) {
+            month.value = 0
+            year.value += 1
+        }
+        else {
+            month.value += 1
+        }
+        
+        monthChanged()
+    }
+    
+    function onDecMonth() {
+        if (month.value === 0) {
+            month.value = 11
+            year.value -= 1
+        }
+        else {
+            month.value -= 1
+        }
+        
+        monthChanged()
     }
     
     function popupMenuSelect(id: string) {
@@ -211,12 +247,13 @@ export function Tracking() {
     }
     
     async function saveMediaDiary(actor: string, data: VideoData | PhotoData, gain: number, note: string) {
+        const now = new Date()
         let inputData: DiaryInputData
         
         if (data.type === "video") {
             inputData = {
                 actor,
-                date: new Date(selectedYear, selectedMonth, selectedDate),
+                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
                 type: "video",
                 content: {
                     duration: data.length,
@@ -231,7 +268,7 @@ export function Tracking() {
         else {
             inputData = {
                 actor,
-                date: new Date(selectedYear, selectedMonth, selectedDate),
+                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
                 type: "photo",
                 content: {
                     image: data.name,
@@ -242,6 +279,10 @@ export function Tracking() {
         }
         
         if (editDiaryId) {
+            if (inputMediaDiaryData.value) {
+                inputData.date = inputMediaDiaryData.value.date
+            }
+            
             await diaryEdit(editDiaryId, inputData)
         }
         else {
@@ -409,7 +450,7 @@ export function Tracking() {
                 diary: x,
                 actor: actorDatasById.get(x.actor)!
             }))
-            .sort((a, b) => a.actor.color.localeCompare(b.actor.color))
+            .sort((a, b) => a.diary.createdAt.getDate() - b.diary.createdAt.getDate())
     }
     
     async function dataChangedListener() {
@@ -419,6 +460,28 @@ export function Tracking() {
         
         refreshTrackingList(selectedYear, selectedMonth, selectedDate)
         refreshDiaryList(selectedYear, selectedMonth, selectedDate)        
+    }
+    
+    function prevDay() {
+        const d = new Date(selectedYear, selectedMonth, selectedDate)
+        d.setDate(d.getDate() - 1)
+        
+        if (d.getMonth() === (selectedMonth - 1) % 12) {
+            onDecMonth()
+        }
+        
+        dateSelected(d.getFullYear(), d.getMonth(), d.getDate())
+    }
+    
+    function nextDay() {
+        const d = new Date(selectedYear, selectedMonth, selectedDate)
+        d.setDate(d.getDate() + 1)
+        
+        if (d.getMonth() === (selectedMonth + 1) % 12) {
+            onIncMonth()
+        }
+        
+        dateSelected(d.getFullYear(), d.getMonth(), d.getDate())
     }
     
     onMount(async () => {
@@ -440,12 +503,22 @@ export function Tracking() {
             />
         </div> */}
         
+        <div class="fixed top-1 right-1">
+            <IconButton
+                icon="icon-[mingcute--more-2-fill] text-xl"
+                onclick={() => settingsPopupVisible.value = true}
+            />
+        </div>
+        
         <CalendarView
             datas={colorDatas.value}
+            year={year.value}
+            month={month.value}
+            onIncMonth={onIncMonth}
+            onDecMonth={onDecMonth}
             onDateLongTouch={dateLongTouch}
             onDateSelected={dateSelected}
             selectedDate={activeDate.value}
-            onMonthChanged={monthChanged}
         />
         
         {inputTextDiaryVisible.value && (
@@ -466,58 +539,59 @@ export function Tracking() {
             />
         )}
         
-        <div class="flex flex-col p-4 gap-2 flex-1">
-            {foreach(trackingList, r => (
-                <div class="flex flex-col px-3 py-2 bg-white/80 rounded-lg shadow-lg">
-                    <div class="flex items-center gap-1">
-                        <div
-                            class={`w-[20px] h-[20px] mr-1 rounded-full ${r.trackData.shape}`}
-                            style={{ background: r.trackData.color }}
-                        />
-                        <span class="text-sm">[{r.trackData.name}]</span>
-                        
-                        {r.tracking.value.length <= 10 && (
-                            <span class="font-bold text-sm">{r.tracking.value}</span>
-                        )}
-                        
-                        <div class="flex-1"/>
-                        
-                        <IconButton
-                            onclick={() => deleteTracking(r)}
-                            icon="icon-[material-symbols--delete]"
-                        />
-                        
-                        <IconButton
-                            onclick={() => editTracking(r)}
-                            icon="icon-[material-symbols--edit]"
-                        />
-                    </div>
-                        
-                    {r.tracking.value.length > 10 && (
-                        <span class="font-bold ml-7 text-sm">{r.tracking.value}</span>
-                    )}
-                    
-                    {r.tracking.note && (
-                        <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{r.tracking.note}</div>
-                    )}
-                </div>
-            ))}
-            
-            {foreach(diaryList, d => (
-                <DiaryList
-                    data={d}
-                    onShow={() => showDiary(d)}
-                    onEdit={() => editDiary(d)}
-                    onDelete={() => deleteDiary(d)}
+        <SwipeableView
+            onPrev={prevDay}
+            onNext={nextDay}
+        >
+            {galleryMode.value ? (
+                <GalleryView
+                    list={diaryList.value}
+                    onShow={showDiary}
+                    onEdit={editDiary}
                 />
-            ))}
-        </div>
+            ) : null}
+            
+            <div class="flex flex-col p-4 gap-2 flex-1">
+                {foreach(trackingList, r => (
+                    <TrackingList
+                        data={r}
+                        onEdit={() => editTracking(r)}
+                        onDelete={() => deleteTracking(r)}
+                    />
+                ))}
+                
+                {foreach(diaryList, d => (
+                    <DiaryList
+                        data={d}
+                        onShow={() => showDiary(d)}
+                        onEdit={() => editDiary(d)}
+                        onDelete={() => deleteDiary(d)}
+                    />
+                ))}
+            </div>
+        </SwipeableView>
         
         <PopupMenu
             items={popupItems.value}
             visible={popupVisible.value}
             onClose={() => popupVisible.value = false}
             onSelect={popupMenuSelect}
+        />
+        
+        <PopupMenu
+            title="Setting"
+            items={[
+                {
+                    id: "galleryMode",
+                    kind: "item",
+                    text: "Gallery Mode",
+                    selectable: true,
+                    selected: galleryMode.value,
+                },
+            ]}
+            visible={settingsPopupVisible.value}
+            onClose={() => settingsPopupVisible.value = false}
+            onSelect={(id) => { if (id === "galleryMode") { galleryMode.value = !galleryMode.value } }}
         />
         
         <Popup
@@ -543,6 +617,106 @@ export function Tracking() {
                 <Button onclick={inputSave}>Simpan</Button>
             </div>
         </Popup>
+    </div>
+}
+
+function GalleryView(props: {
+    list: DiaryListItemData[]
+    onShow: (i: DiaryListItemData) => void
+    onEdit: (i: DiaryListItemData) => void
+}) {
+    return <div class="grid grid-cols-3 px-4 gap-1">
+        {foreach(props.list, d => d.diary.type === "video" || d.diary.type === "photo" ? (
+            <div
+                class="relative"
+                oncontextmenu={prevent()}
+            >
+                <img
+                    class="rounded-lg"
+                    src={envAsAndroidFileUrl(d.diary.type === "video" ? d.diary.content.thumbnail : d.diary.content.image)}
+                    style={{
+                        aspectRatio: "1280/1920",
+                        objectFit: "cover",
+                    }}
+                    oncontextmenu={prevent()}
+                />
+                
+                <div
+                    class="absolute inset-0 active:bg-black/10"
+                    onclick={() => props.onShow(d)}
+                />
+                
+                <div
+                    class={twMerge(
+                        "w-[20px] h-[20px] absolute left-1 top-1",
+                        d.diary.type === "video"
+                            ? "icon-[tabler--video-filled]"
+                        : d.diary.type === "photo"
+                            ? "icon-[ic--round-photo]"
+                            : "icon-[mingcute--diary-fill]"
+                    )}
+                    style={{ background: d.actor.color }}
+                />
+                
+                <div class="absolute left-0 bottom-0 bg-black/50 text-white px-1 py-0.5 text-xs rounded-lg flex items-center gap-0.5">
+                    <span class="icon-[tabler--clock-filled] text-xs"/>
+                    <span>{dateFormatToTime(d.diary.createdAt)}</span>                        
+                </div>
+                
+                {d.diary.type === "video" && (
+                    <div class="absolute right-0 bottom-0 bg-black/50 text-white px-1 py-0.5 text-xs rounded-lg flex items-center gap-0.5">
+                        <span class="icon-[line-md--play-filled] text-xs"/>
+                        <span >{formatVideoLengthText(d.diary.content.duration)}</span>
+                    </div>
+                )}
+                
+                <IconButton
+                    class="absolute top-0.5 right-0.5"
+                    icon="icon-[material-symbols--edit]"
+                    onclick={() => props.onEdit(d)}
+                />
+            </div>
+        ) : null)}
+    </div>
+}
+
+function TrackingList(props: {
+    data: TrackingListItemData
+    onEdit: () => void
+    onDelete: () => void
+}) {
+    return <div class="flex flex-col px-3 py-2 bg-white/80 rounded-lg shadow-lg">
+        <div class="flex items-center gap-1">
+            <div
+                class={`w-[20px] h-[20px] mr-1 rounded-full ${props.data.trackData.shape}`}
+                style={{ background: props.data.trackData.color }}
+            />
+            <span class="text-sm">[{props.data.trackData.name}]</span>
+            
+            {props.data.tracking.value.length <= 10 && (
+                <span class="font-bold text-sm">{props.data.tracking.value}</span>
+            )}
+            
+            <div class="flex-1"/>
+            
+            <IconButton
+                onclick={props.onDelete}
+                icon="icon-[material-symbols--delete]"
+            />
+            
+            <IconButton
+                onclick={props.onEdit}
+                icon="icon-[material-symbols--edit]"
+            />
+        </div>
+            
+        {props.data.tracking.value.length > 10 && (
+            <span class="font-bold ml-7 text-sm">{props.data.tracking.value}</span>
+        )}
+        
+        {props.data.tracking.note && (
+            <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{props.data.tracking.note}</div>
+        )}
     </div>
 }
 
@@ -577,6 +751,10 @@ function DiaryList(props: {
             <span class="text-sm mr-1">{props.data.actor.name}</span>
             <span class="text-sm">{props.data.actor.emoji}</span>
             
+            {(props.data.diary.type === "video" || props.data.diary.type === "photo") && <>
+                <span class="text-xs font-bold ml-1 text-gray-500">{dateFormatToTime(props.data.diary.createdAt)}</span>
+            </>}
+            
             <div class="flex-1"/>
             
             {(props.data.diary.type === "video" || props.data.diary.type === "photo") && (
@@ -609,7 +787,6 @@ function DiaryList(props: {
             {expanded.value && (
                 <div
                     class="self-center mt-1 overflow-hidden"
-                    transition={curtain()}
                 >
                     <img
                         src={envAsAndroidFileUrl(props.data.diary.type === "video" ? props.data.diary.content.thumbnail : props.data.diary.content.image)}

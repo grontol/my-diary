@@ -65,6 +65,7 @@ class WebViewHelper(
         webView.settings.allowFileAccess = true
         webView.settings.allowFileAccessFromFileURLs = true
         webView.settings.allowUniversalAccessFromFileURLs = true
+        webView.settings.domStorageEnabled = true
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(

@@ -72,17 +72,22 @@ export type DayData = {
 
 export function CalendarView(props: {
     datas: Record<string, DayData>,
-    onMonthChanged?: (year: number, month: number) => void,
+    year: number,
+    month: number,
+    
+    onDecMonth: () => void,
+    onIncMonth: () => void,
+    
     onDateLongTouch?: (year: number, month: number, date: number) => void,
     onDateSelected?: (year: number, month: number, date: number) => void,
     selectedDate?: string,
     changeMonthOnClickOther?: boolean,
+    children?: JSX.Element,
 }) {
     const changeMonthOnClickOther = derived(() => props.changeMonthOnClickOther ?? true)
     
-    const now = new Date()
-    const year = state(now.getFullYear())
-    const month = state(now.getMonth())
+    const year = derived(() => props.year)
+    const month = derived(() => props.month)
     
     const prevYear = derived(() => month.value === 0 ? year.value - 1 : year.value)
     const nextYear = derived(() => month.value === 11 ? year.value + 1 : year.value)
@@ -98,27 +103,11 @@ export function CalendarView(props: {
     const nextMonthName = derived(() => months[nextMonth.value])
     
     function decMonth() {
-        if (month.value === 0) {
-            month.value = 11
-            year.value -= 1
-        }
-        else {
-            month.value -= 1
-        }
-        
-        props.onMonthChanged?.(year.value, month.value)
+        props.onDecMonth()
     }
     
-    function incMonth() {
-        if (month.value === 11) {
-            month.value = 0
-            year.value += 1
-        }
-        else {
-            month.value += 1
-        }
-        
-        props.onMonthChanged?.(year.value, month.value)
+    function incMonth() {        
+        props.onIncMonth()
     }
     
     function getY(d: Day) {
@@ -172,6 +161,7 @@ export function CalendarView(props: {
     
     let dragging = false
     let startX = 0
+    let startY = 0
     let deltaX = 0
     let startTime = 0
     let timeoutId: any = null
@@ -180,6 +170,7 @@ export function CalendarView(props: {
         if (timeoutId) clearTimeout(timeoutId)
         
         startX = e.touches[0].clientX
+        startY = e.touches[0].clientY
         deltaX = 0
         startTime = Date.now()
         dragging = true
@@ -189,7 +180,14 @@ export function CalendarView(props: {
         if (!dragging) return
         
         deltaX = e.touches[0].clientX - startX
-        translation.value = Math.max(Math.min(deltaX, window.innerWidth * 1.1), -window.innerWidth * 1.1)
+        const deltaY = e.touches[0].clientY - startY
+        
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            translation.value = 0
+        }
+        else {
+            translation.value = Math.max(Math.min(deltaX, window.innerWidth * 1.1), -window.innerWidth * 1.1)
+        }
     }
     
     function touchEnd(e: TouchEvent) {
@@ -258,7 +256,7 @@ export function CalendarView(props: {
                 onSelect={select}
                 selectedDate={props.selectedDate}
                 percentage={percentage.value}
-            />
+            >{props.children}</DetailView>
             
             <DetailView
                 datas={props.datas}
@@ -285,6 +283,8 @@ function DetailView(props: {
     
     onLongTouch?: (d: Day) => void
     onSelect?: (d: Day) => void
+    
+    children?: JSX.Element
 }) {
     const now = new Date()
     
@@ -349,5 +349,7 @@ function DetailView(props: {
                 ))}
             </div>
         ))}
+        
+        {props.children}
     </div>
 }

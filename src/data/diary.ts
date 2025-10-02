@@ -7,6 +7,7 @@ export type DiaryCommonData = {
     id: string
     actor: string
     date: Date
+    createdAt: Date
 }
 
 export type DiaryTextData = DiaryCommonData & {
@@ -38,7 +39,7 @@ export type DiaryPhotoData = DiaryCommonData & {
 export type DiaryMediaData = DiaryVideoData | DiaryPhotoData
 export type DiaryData = DiaryTextData | DiaryVideoData | DiaryPhotoData
 
-export type DiaryInputData = Omit<DiaryTextData, 'id'> | Omit<DiaryVideoData, 'id'> | Omit<DiaryPhotoData, 'id'>
+export type DiaryInputData = Omit<DiaryTextData, 'id' | 'createdAt'> | Omit<DiaryVideoData, 'id' | 'createdAt'> | Omit<DiaryPhotoData, 'id' | 'createdAt'>
 
 const storeName: StoreName = "diary"
 
@@ -46,7 +47,7 @@ export async function diaryGetAll(): Promise<DiaryData[]> {
     const data = await repo.getAll(storeName)
     
     for (const r of data) {
-        dateRefineFromImport(r, ["date"])
+        dateRefineFromImport(r, ["date", "createdAt"])
     }
     
     return data
@@ -61,9 +62,12 @@ export async function diaryAdd(data: DiaryInputData) {
 
 
 export async function diaryEdit(id: string, data: DiaryInputData) {
+    const oldData = await repo.get(storeName, id) as DiaryData
+    
     const d: DiaryData = {
         ...data,
         id,
+        createdAt: oldData.createdAt,
     }
     
     await repo.update(storeName, id, d)
@@ -75,7 +79,7 @@ export async function diaryDelete(id: string) {
 
 export async function diaryImport(data: DiaryData[]) {
     for (const r of data) {
-        dateRefineFromImport(r, ["date"])
+        dateRefineFromImport(r, ["date", "createdAt"])
     }
     
     await repo.import(storeName, data)

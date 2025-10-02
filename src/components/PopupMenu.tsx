@@ -9,6 +9,8 @@ export type PopupMenuItem = {
     text: string
     icon?: string
     iconColor?: string
+    selectable?: boolean
+    selected?: boolean
 } | {
     kind: "divider"
 }
@@ -18,8 +20,10 @@ export function PopupMenu(props: {
     visible: boolean,
     onClose: () => void,
     onSelect: (id: string) => void,
+    title?: string,
 }) {
     const hasIcon = derived(() => props.items.some(x => x.kind === "item" && !!x.icon))
+    const hasSelectable = derived(() => props.items.some(x => x.kind === "item" && (x.selectable ?? false)))
     
     return <div
         class={twMerge(
@@ -27,14 +31,22 @@ export function PopupMenu(props: {
             props.visible ? "" : "hidden"
         )}
         onclick={self(props.onClose)}
-    >
+    >        
         <div class="flex flex-col bg-white rounded py-2 min-w-[60%]">
+            {props.title && (
+                <div class="font-black text-center py-1">{props.title}</div>
+            )}
+        
             {foreach(props.items, i => (
                 i.kind === "item" ? (
                     <div
                         class="px-4 py-2 flex items-center gap-2 active:bg-black/10 transition-colors"
                         onclick={() => props.onSelect(i.id)}
                     >
+                        {i.selectable && i.selected && (
+                            <span class="icon-[mdi--check] text-xl"></span>
+                        )}
+                        
                         {i.icon && (
                             <span
                                 class={twJoin(
@@ -45,6 +57,10 @@ export function PopupMenu(props: {
                                     color: i.iconColor,
                                 }}
                             />
+                        )}
+                        
+                        {hasSelectable.value && (!i.selectable || !i.selected) && (
+                            <span class="w-5"/>
                         )}
                         
                         <span

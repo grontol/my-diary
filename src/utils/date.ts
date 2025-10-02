@@ -6,6 +6,13 @@ export function dateFormatDateToString(date: Date) {
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
 }
 
+export function dateFormatToTime(date: Date) {
+    const h = date.getHours()
+    const m = date.getMinutes()
+    
+    return `${h}:${m.toString().padStart(2, '0')}`
+}
+
 export function dateRefineFromImport<T extends Record<string, any>>(data: T, keys: Array<keyof T>) {
     for (const k of keys) {
         if (k in data && typeof data[k] === "string") {

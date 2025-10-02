@@ -4,6 +4,7 @@ import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
 import { DiaryMediaData } from "@/data/diary.js";
 import { envAsAndroidFileUrl, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
+import { formatFileSizeText, formatVideoLengthText } from "@/utils/format.js";
 import { foreach } from "@pang/core.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { derived, state } from "@pang/reactive.js";
@@ -307,11 +308,11 @@ export function MediaDiaryInput(props: {
                         {mediaData.value.type === "video" && (
                             <span
                                 class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
-                            >{videoLengthText(mediaData.value.length)}</span>
+                            >{formatVideoLengthText(mediaData.value.length)}</span>
                         )}
                     </div>
                     
-                    <span class="font-bold">{mediaData.value.name} - {fileSizeText(mediaData.value.size)}</span>
+                    <span class="font-bold">{mediaData.value.name} - {formatFileSizeText(mediaData.value.size)}</span>
                     
                     {mediaData.value.type === "video" && (
                         <>
@@ -494,63 +495,4 @@ function GainSlider(props: {
             />
         </div>
     </div>
-}
-
-function videoLengthText(length: number): string {
-    const s = Math.round(length / 1000) % 60
-    const m = Math.floor(length / (60 * 1000)) % 60
-    const h = Math.floor(length / (60 * 60 * 1000))
-    
-    const hs = h > 0 ? `${h}:` : ''
-    const ms = (h > 0 ? m.toString().padStart(2, '0') : m) + ':'
-    const ss = s.toString().padStart(2, '0')
-    
-    return `${hs}${ms}${ss}`
-}
-
-function fileSizeText(size: number): string {
-    if (size < 1024) {
-        return `${size}B`
-    }
-    else if (size < 1024 * 1024) {
-        return `${numberToStringPrecision(size / 1024)}KB`
-    }
-    else if (size < 1024 * 1024 * 1024) {
-        return `${numberToStringPrecision(size / (1024 * 1024))}MB`
-    }
-    else {
-        return `${numberToStringPrecision(size / (1024 * 1024 * 1024))}GB`
-    }
-}
-
-function numberToStringPrecision(n: number): string {
-    const base = Math.floor(n)
-    
-    if (base === n) {
-        return n.toString()
-    }
-    else {
-        const frac = Math.floor((n - base) * 100)
-        const fracStr = frac % 10 === 0 ? (frac / 10).toString() : frac.toString()
-        
-        return `${base}.${fracStr}`
-    }
-}
-
-async function readFile(): Promise<string> {
-    return new Promise((res, rej) => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = ".mp4"
-
-        input.addEventListener('change', function(event) {
-            const selectedFile = (event?.target as any).files[0]
-            
-            if (selectedFile) {
-                console.log(selectedFile)
-            }
-        });
-
-        input.click()
-    })
 }

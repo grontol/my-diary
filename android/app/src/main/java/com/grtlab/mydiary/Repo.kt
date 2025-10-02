@@ -62,6 +62,7 @@ data class DiaryData(
     val id: String,
     val actor: String,
     val date: String,
+    val createdAt: String,
     val type: DiaryType,
     val content: JsonElement,
 )
@@ -201,6 +202,7 @@ val diaryModel = Model("diary", { c ->
         id = c.string("id"),
         actor = c.string("actor"),
         date = c.string("date"),
+        createdAt = c.stringOrNull("createdAt") ?: c.string("date"),
         type = when (c.stringOrNull("type")) {
             "text" -> DiaryType.Text
             "video" -> DiaryType.Video
@@ -213,6 +215,7 @@ val diaryModel = Model("diary", { c ->
     put("id", it.id)
     put("actor", it.actor)
     put("date", it.date)
+    put("createdAt", it.createdAt)
     put("type", when (it.type) {
         DiaryType.Text -> "text"
         DiaryType.Video -> "video"
@@ -461,10 +464,13 @@ val migrations = listOf(
     Migration(3, { db ->
         db.execSQL("ALTER TABLE resep ADD COLUMN done INTEGER")
         db.execSQL("ALTER TABLE resep ADD COLUMN rating INTEGER")
+    }),
+    Migration(4, { db ->
+        db.execSQL("ALTER TABLE diary ADD COLUMN createdAt TEXT")
     })
 )
 
-class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 3) {
+class DbHelper(context: Context) : SQLiteOpenHelper(context, "data.db", null, 4) {
     override fun onCreate(db: SQLiteDatabase) {
         migrations.filter { it.version == 1 }
             .forEach {
