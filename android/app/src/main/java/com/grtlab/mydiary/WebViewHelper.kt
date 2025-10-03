@@ -1,12 +1,12 @@
 package com.grtlab.mydiary
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -20,6 +20,8 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatActivity.RESULT_OK
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.webkit.WebViewAssetLoader
@@ -27,8 +29,6 @@ import com.google.gson.Gson
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileOutputStream
-import androidx.core.graphics.scale
 import kotlin.concurrent.thread
 
 private val gson = Gson()
@@ -43,6 +43,7 @@ class WebViewHelper(
     private val UPLOAD_VIDEO_REQUEST_CODE = 1666
     private val TAKE_PHOTO_REQUEST_CODE = 1235
     private val UPLOAD_PHOTO_REQUEST_CODE = 1667
+    private val UPLOAD_AUDIO_REQUEST_CODE = 1668
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
@@ -54,6 +55,11 @@ class WebViewHelper(
     private var photoUri: Uri? = null
     private var takePhotoCbId: String? = null
     private var uploadPhotoCbId: String? = null
+
+    private var recordAudioFile: File? = null
+    private var recordAudioCbId: String? = null
+    private var recordAudioDoneCbId: String? = null
+    private var uploadAudioCbId: String? = null
 
     init {
         val assetLoader = WebViewAssetLoader.Builder()
@@ -272,6 +278,62 @@ class WebViewHelper(
             }
 
             @JavascriptInterface
+            fun recordAudio(cbId: String) {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(
+                        context,
+                        arrayOf(Manifest.permission.RECORD_AUDIO),
+                        1001
+                    )
+                    return
+                }
+
+                recordAudioCbId = cbId
+                recordAudioFile = getMovieDirFile("diary_${System.currentTimeMillis()}_audio.m4a")
+
+                context.runOnUiThread {
+                    MediaUtils.startAudioRecording(recordAudioFile!!) {
+                        recordAudioProgress(it)
+                    }
+                }
+            }
+
+            @JavascriptInterface
+            fun stopRecordAudio(cbId: String) {
+                recordAudioDoneCbId = cbId
+
+                context.runOnUiThread {
+                    MediaUtils.stopAudioRecording()
+                    recordAudioDone()
+                }
+            }
+
+            @JavascriptInterface
+            fun uploadAudio(cbId: String) {
+                uploadAudioCbId = cbId
+                val intent = Intent(Intent.ACTION_GET_CONTENT)
+                intent.setType("audio/*")
+                context.startActivityForResult(intent, UPLOAD_AUDIO_REQUEST_CODE)
+            }
+
+            @JavascriptInterface
+            fun playAudio(name: String, gain: Float) {
+                val audioFile = getMovieDirFile(name)
+                val audioUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    audioFile
+                )
+
+                val intent = Intent(context, VideoActivity::class.java)
+                intent.data = audioUri
+                intent.putExtra("gain", gain)
+                context.startActivity(intent)
+            }
+
+            @JavascriptInterface
             fun deleteUnusedMedia() {
                 val dir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
 
@@ -439,6 +501,50 @@ class WebViewHelper(
         }
     }
 
+    private fun recordAudioProgress(amp: Double) {
+        recordAudioCbId?.let { cbId ->
+            webView.post {
+                webView.evaluateJavascript("callFn('${cbId}', $amp)", null)
+            }
+        }
+    }
+
+    private fun recordAudioDone() {
+        recordAudioDoneCbId?.let { cbId ->
+            val data = JSONObject.quote(gson.toJson(
+                mapOf(
+                    "name" to (recordAudioFile?.name ?: ""),
+                    "size" to (recordAudioFile?.length() ?: 0),
+                    "duration" to MediaUtils.getDuration(recordAudioFile!!),
+                )
+            ))
+
+            webView.post {
+                webView.evaluateJavascript("callFn('${cbId}', $data)",null)
+            }
+        }
+    }
+
+    private fun uploadAudioProgress(success: Boolean, progress: Double, outputFile: File?) {
+        uploadAudioCbId?.let { cbId ->
+            val audioData = if (progress >= 1 && outputFile != null) {
+                JSONObject.quote(
+                    gson.toJson(
+                        mapOf(
+                            "name" to outputFile.name,
+                            "duration" to MediaUtils.getDuration(outputFile),
+                            "size" to outputFile.length(),
+                        )
+                    )
+                )
+            } else "null"
+
+            webView.post {
+                webView.evaluateJavascript("callFn('${cbId}', $success, $progress, $audioData)",null)
+            }
+        }
+    }
+
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
             if (resultCode == RESULT_OK && data != null) {
@@ -489,6 +595,19 @@ class WebViewHelper(
             }
             else {
                 photoUploadProgress(false, 0.0, null)
+            }
+        }
+        else if (requestCode == UPLOAD_AUDIO_REQUEST_CODE) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                val extension = MediaUtils.getFileExtensionFromUri(context, data.data!!)
+                val outputFile = getMovieDirFile("diary_${System.currentTimeMillis()}_audio.$extension")
+
+                MediaUtils.copy(context, data.data!!, outputFile) { progress ->
+                    uploadAudioProgress(true, progress, outputFile)
+                }
+            }
+            else {
+                uploadAudioProgress(false, 0.0, null)
             }
         }
     }

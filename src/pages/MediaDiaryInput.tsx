@@ -3,27 +3,28 @@ import { Button, IconButton } from "@/components/Button.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
 import { DiaryMediaData } from "@/data/diary.js";
-import { envAsAndroidFileUrl, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
+import { AudioData, envAsAndroidFileUrl, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
 import { formatFileSizeText, formatVideoLengthText } from "@/utils/format.js";
 import { foreach } from "@pang/core.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { derived, state } from "@pang/reactive.js";
 import { twMerge } from "tailwind-merge";
 
-// const sampleMedia: PhotoData = {
-//     type: "photo",
-//     name: "diary_1758999736181_img.jpg",
-//     size: 135889000,
-// }
+const sampleMedia: AudioData = {
+    type: "audio",
+    name: "diary_1759478849449_audio.m4a",
+    size: 135889000,
+    duration: 5200,
+}
 
 export function MediaDiaryInput(props: {
     onCancel: () => void
-    onSave: (acrot: string, data: VideoData | PhotoData, gain: number, note: string) => void
+    onSave: (acrot: string, data: VideoData | PhotoData | AudioData, gain: number, note: string) => void
     data?: DiaryMediaData
 }) {
     const actors = state<ActorData[]>([])
     const selectedActor = state(props.data?.actor ?? "")
-    const mediaData = state<VideoData | PhotoData | null>(null)
+    const mediaData = state<VideoData | PhotoData | AudioData | null>(null)
     
     if (props.data) {
         if (props.data.type === "video") {
@@ -35,12 +36,23 @@ export function MediaDiaryInput(props: {
                 thumbnail: props.data.content.thumbnail,
             }
         }
-        else {
+        else if (props.data.type === "photo") {
             mediaData.value = {
                 type: "photo",
                 name: props.data.content.image,
                 size: props.data.content.size,
             }
+        }
+        else if (props.data.type === "audio") {
+            mediaData.value = {
+                type: "audio",
+                name: props.data.content.audio,
+                duration: props.data.content.duration,
+                size: props.data.content.size,
+            }
+        }
+        else {
+            alert("UNKNOWN MEDIA")
         }
     }
     
@@ -51,10 +63,13 @@ export function MediaDiaryInput(props: {
     const uploading = state(false)
     const uploadProgress = state(0)
     
-    const gain = state(props.data?.type === "video" ? props.data.content.gain : 0)
+    const recordingAudio = state(false)
+    const recordingAudioAmp = state(0)
+    
+    const gain = state((props.data?.type === "video" || props.data?.type === "audio") ? props.data.content.gain : 0)
     const note = state(props.data?.content.note ?? "")
     
-    const colledtedMedias: (VideoData | PhotoData)[] = []
+    const colledtedMedias: (VideoData | PhotoData | AudioData)[] = []
     
     function save() {
         if (!mediaData.value) {
@@ -89,8 +104,11 @@ export function MediaDiaryInput(props: {
                     toDelete.push(props.data.content.video)
                     toDelete.push(props.data.content.thumbnail)
                 }
-                else {
+                else if (props.data.type === "photo") {
                     toDelete.push(props.data.content.image)
+                }
+                else {
+                    toDelete.push(props.data.content.audio)
                 }
             }
             
@@ -224,10 +242,53 @@ export function MediaDiaryInput(props: {
         })
     }
     
+    function recordAudio() {
+        recordingAudio.value = true
+        
+        getAndroidEnv()?.recordAudio(amp => {
+            recordingAudioAmp.value = amp
+        })
+    }
+    
+    function stopRecordAudio() {
+        getAndroidEnv()?.stopRecordAudio(data => {
+            recordingAudio.value = false
+            mediaData.value = data ?? null
+            
+            if (data) {
+                colledtedMedias.push(data)
+            }
+        })
+    }
+    
+    function uploadAudio() {
+        uploading.value = true
+        
+        getAndroidEnv()?.uploadAudio((success, progress, audio) => {
+            console.log(success, progress, audio)
+            if (success) {
+                if (progress >= 1) {
+                    uploading.value = false
+                    mediaData.value = audio ?? null
+                    
+                    if (audio) {
+                        colledtedMedias.push(audio)
+                    }
+                }
+                else {
+                    uploadProgress.value = progress
+                }
+            }
+            else {
+                uploading.value = false
+            }
+        })
+    }
+    
     function deleteMedia() {
         showAlert({
             title: "Konfirmasi",
-            message: "Delete video?",
+            message: "Delete media?",
             type: "question",
             onOk() {                
                 mediaData.value = null
@@ -241,6 +302,9 @@ export function MediaDiaryInput(props: {
         }
         else if (mediaData.value?.type === "photo") {
             getAndroidEnv()?.viewPhoto(mediaData.value.name)
+        }
+        else if (mediaData.value?.type === "audio") {
+            getAndroidEnv()?.playAudio(mediaData.value.name, gain.value)
         }
     }
     
@@ -282,17 +346,23 @@ export function MediaDiaryInput(props: {
             {mediaData.value ? (
                 <div class="flex flex-col items-center mt-4">
                     <div class="relative self-center">
-                        <img
-                            src={envAsAndroidFileUrl(mediaData.value.type === "video" ? mediaData.value.thumbnail : mediaData.value.name)}
-                            width={`${window.innerWidth * 0.5}px`}
-                            class="rounded-xl"
-                        />
+                        {mediaData.value.type === "audio" ? (
+                            <div class="w-60% px-10 py-6sssss">
+                                <span class="icon-[mdi--waveform] text-9xl text-pink-800"/>
+                            </div>
+                        ) : (
+                            <img
+                                src={envAsAndroidFileUrl(mediaData.value.type === "video" ? mediaData.value.thumbnail : mediaData.value.name)}
+                                width={`${window.innerWidth * 0.5}px`}
+                                class="rounded-xl"
+                            />
+                        )}
                         
                         <div
                             class="absolute bg-black/10 inset-0 flex items-center justify-center active:bg-black/20 rounded-xl"
                             onclick={playMedia}
                         >
-                            {mediaData.value.type === "video" ? (
+                            {mediaData.value.type === "video" || mediaData.value.type === "audio" ? (
                                 <span class="icon-[solar--play-bold] text-white text-4xl"></span>
                             ) : (
                                 <span class="icon-[ion--open] text-white text-4xl"></span>
@@ -305,25 +375,31 @@ export function MediaDiaryInput(props: {
                             onclick={deleteMedia}
                         />
                         
-                        {mediaData.value.type === "video" && (
+                        {mediaData.value.type === "video" ? (
                             <span
                                 class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
                             >{formatVideoLengthText(mediaData.value.length)}</span>
-                        )}
+                        ) : mediaData.value.type === "audio" ? (
+                            <span
+                                class="absolute z-10 right-0 bottom-0 bg-black/50 text-white px-2 py-1 rounded-xl"
+                            >{formatVideoLengthText(mediaData.value.duration)}</span>
+                        ) : null}
                     </div>
                     
-                    <span class="font-bold">{mediaData.value.name} - {formatFileSizeText(mediaData.value.size)}</span>
+                    <span class="font-bold mt-2">{mediaData.value.name} - {formatFileSizeText(mediaData.value.size)}</span>
                     
-                    {mediaData.value.type === "video" && (
+                    {(mediaData.value.type === "video" || mediaData.value.type === "audio") && (
                         <>
-                            {compressing.value ? <>
-                                <ProgressBar value={compressProgress.value}/>
-                                <span>Compressing</span>
-                                
-                                <Button class="mt-2" onclick={cancelCompress}>Cancel Compression</Button>
-                            </> : (
-                                <Button class="mt-2" onclick={compressVideo}>Compress</Button>
-                            )}
+                            {mediaData.value.type === "video" ? <>
+                                {compressing.value ? <>
+                                    <ProgressBar value={compressProgress.value}/>
+                                    <span>Compressing</span>
+                                    
+                                    <Button class="mt-2" onclick={cancelCompress}>Cancel Compression</Button>
+                                </> : (
+                                    <Button class="mt-2" onclick={compressVideo}>Compress</Button>
+                                )}
+                            </> : null}
                             
                             <GainSlider
                                 class="mt-4"
@@ -338,6 +414,21 @@ export function MediaDiaryInput(props: {
                     <ProgressBar value={uploadProgress.value}/>
                     <span>Upload</span>
                 </div>
+            ) : recordingAudio.value ? (
+                <div class="flex items-center justify-center w-[80%] aspect-square relative self-center mt-6">
+                    <div
+                        class="bg-pink-300 aspect-square rounded-full absolute"
+                        style={{
+                            width: `${60 + 40 * recordingAudioAmp.value / 90}%`
+                        }}
+                    />
+                    <div
+                        class="bg-pink-600 active:bg-pink-700 w-[60%] aspect-square rounded-full absolute flex items-center justify-center"
+                        onclick={stopRecordAudio}
+                    >
+                        <span class="icon-[ic--round-stop] text-7xl text-white"/>
+                    </div>
+                </div>
             ) : (
                 <div class="grid grid-cols-2 p-6 gap-2">
                     <MainIcon
@@ -347,21 +438,33 @@ export function MediaDiaryInput(props: {
                     />
                     
                     <MainIcon
-                        text="Take Photo"
-                        icon="icon-[flat-color-icons--photo-reel] text-7xl"
-                        onclick={takePhoto}
-                    />
-                    
-                    <MainIcon
                         text="Upload Video"
                         icon="icon-[fluent-color--cloud-32] text-7xl"
                         onclick={uploadVideo}
                     />
                     
                     <MainIcon
+                        text="Take Photo"
+                        icon="icon-[flat-color-icons--photo-reel] text-7xl"
+                        onclick={takePhoto}
+                    />
+                    
+                    <MainIcon
                         text="Upload Photo"
                         icon="icon-[fluent-color--camera-24] text-7xl"
                         onclick={uploadPhoto}
+                    />
+                    
+                    <MainIcon
+                        text="Record Audio"
+                        icon="icon-[emojione-v1--bull-horn-with-sound-waves] text-7xl"
+                        onclick={recordAudio}
+                    />
+                    
+                    <MainIcon
+                        text="Upload Audio"
+                        icon="icon-[fxemoji--wave] text-7xl"
+                        onclick={uploadAudio}
                     />
                 </div>
             )}
@@ -423,7 +526,7 @@ function GainSlider(props: {
     let container: HTMLDivElement
     
     const knobWidth = window.innerWidth * 0.07
-    const maxGain = 15
+    const maxGain = 30
     
     const xPercent = derived(() => (props.value + maxGain) * 100 / (maxGain * 2))
     const isMouseDown = state(false)

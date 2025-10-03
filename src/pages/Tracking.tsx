@@ -12,7 +12,7 @@ import { TrackingData, trackingDataAdd, trackingDataDelete, trackingDataEdit, tr
 import { DiaryInput } from "@/pages/DiaryInput.jsx";
 import { MediaDiaryInput } from "@/pages/MediaDiaryInput.jsx";
 import { dateFormatDateToString, dateFormatToString, dateFormatToTime } from "@/utils/date.js";
-import { envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
+import { AudioData, envAddDataChangedListener, envAsAndroidFileUrl, envRemoveWebEventListener, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
 import { formatVideoLengthText } from "@/utils/format.js";
 import { foreach } from "@pang/core.js";
 import { prevent, stop } from "@pang/event-utils.js";
@@ -246,7 +246,7 @@ export function Tracking() {
         inputTextDiaryVisible.value = false
     }
     
-    async function saveMediaDiary(actor: string, data: VideoData | PhotoData, gain: number, note: string) {
+    async function saveMediaDiary(actor: string, data: VideoData | PhotoData | AudioData, gain: number, note: string) {
         const now = new Date()
         let inputData: DiaryInputData
         
@@ -261,6 +261,20 @@ export function Tracking() {
                     size: data.size,
                     thumbnail: data.thumbnail,
                     video: data.name,
+                    note,
+                },
+            }
+        }
+        else if (data.type === "audio") {
+            inputData = {
+                actor,
+                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
+                type: "audio",
+                content: {
+                    audio: data.name,
+                    duration: data.duration,
+                    size: data.size,
+                    gain,
                     note,
                 },
             }
@@ -309,6 +323,9 @@ export function Tracking() {
         else if (d.diary.type === "photo") {
             getAndroidEnv()?.viewPhoto(d.diary.content.image)
         }
+        else if (d.diary.type === "audio") {
+            getAndroidEnv()?.playAudio(d.diary.content.audio, d.diary.content.gain)
+        }
     }
     
     async function editDiary(d: DiaryListItemData) {
@@ -321,7 +338,7 @@ export function Tracking() {
             inputTextDiaryVisible.value = true
             inputTextDiaryReadonly.value = false
         }
-        else if (d.diary.type === "video" || d.diary.type === "photo") {
+        else if (d.diary.type === "video" || d.diary.type === "photo" || d.diary.type === "audio") {
             inputMediaDiaryData.value = d.diary
             
             inputMediaDiaryVisible.value = true
@@ -744,6 +761,8 @@ function DiaryList(props: {
                         ? "icon-[tabler--video-filled]"
                     : props.data.diary.type === "photo"
                         ? "icon-[ic--round-photo]"
+                    : props.data.diary.type === "audio"
+                        ? "icon-[mdi--waveform]"
                         : "icon-[mingcute--diary-fill]"
                 )}
                 style={{ background: props.data.actor.color }}
@@ -751,7 +770,7 @@ function DiaryList(props: {
             <span class="text-sm mr-1">{props.data.actor.name}</span>
             <span class="text-sm">{props.data.actor.emoji}</span>
             
-            {(props.data.diary.type === "video" || props.data.diary.type === "photo") && <>
+            {(props.data.diary.type === "video" || props.data.diary.type === "photo" || props.data.diary.type === "audio") && <>
                 <span class="text-xs font-bold ml-1 text-gray-500">{dateFormatToTime(props.data.diary.createdAt)}</span>
             </>}
             
@@ -766,6 +785,10 @@ function DiaryList(props: {
                         expanded.value ? "rotate-90" : ""
                     )}
                 />
+            )}
+            
+            {props.data.diary.type === "audio" && (
+                <span class="text-xs font-bold ml-1 text-gray-500 mr-2">{formatVideoLengthText(props.data.diary.content.duration)}</span>
             )}
             
             <IconButton

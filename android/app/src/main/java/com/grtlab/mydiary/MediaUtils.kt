@@ -6,13 +6,17 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import androidx.exifinterface.media.ExifInterface
 import android.media.MediaMetadataRetriever
+import android.media.MediaRecorder
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import androidx.core.graphics.scale
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.concurrent.thread
+import kotlin.math.log10
 
 object MediaUtils {
     fun compress(originalFile: File, compressedFile: File, cb: (success: Boolean, completed: Boolean, progress: Double) -> Unit) {
@@ -162,5 +166,60 @@ object MediaUtils {
         } else {
             bitmap
         }
+    }
+
+    private var recorder: MediaRecorder? = null
+
+    fun startAudioRecording(outputFile: File, cb: (amp: Double) -> Unit) {
+        recorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioEncodingBitRate(128000)
+            setAudioSamplingRate(44100)
+            setOutputFile(outputFile)
+            prepare()
+            start()
+        }
+
+        thread {
+            while (recorder != null) {
+                Thread.sleep(100)
+                val amplitude = recorder?.maxAmplitude ?: 0
+                val db = if (amplitude > 0) 20 * log10(amplitude.toDouble()) else 0.0
+                cb(db)
+            }
+        }
+    }
+
+    fun stopAudioRecording() {
+        recorder?.apply {
+            stop()
+            release()
+        }
+        recorder = null
+    }
+
+    fun getFileExtensionFromUri(context: Context, uri: Uri): String? {
+        // coba lewat mime type dulu
+        val mime = context.contentResolver.getType(uri)
+        if (mime != null) {
+            return MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+        }
+
+        // fallback: ambil dari nama file
+        var result: String? = null
+        if (uri.scheme == "content") {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst()) {
+                    val name = cursor.getString(nameIndex)
+                    result = name.substringAfterLast('.', "")
+                }
+            }
+        } else if (uri.scheme == "file") {
+            result = File(uri.path!!).extension
+        }
+        return result
     }
 }

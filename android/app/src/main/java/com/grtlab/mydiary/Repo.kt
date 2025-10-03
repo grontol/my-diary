@@ -56,6 +56,8 @@ enum class DiaryType {
     Video,
     @SerializedName("photo")
     Photo,
+    @SerializedName("audio")
+    Audio,
 }
 
 data class DiaryData(
@@ -207,6 +209,7 @@ val diaryModel = Model("diary", { c ->
             "text" -> DiaryType.Text
             "video" -> DiaryType.Video
             "photo" -> DiaryType.Photo
+            "audio" -> DiaryType.Audio
             else -> DiaryType.Text
         },
         content = gson.fromJson(c.string("content"), JsonElement::class.java),
@@ -220,6 +223,7 @@ val diaryModel = Model("diary", { c ->
         DiaryType.Text -> "text"
         DiaryType.Video -> "video"
         DiaryType.Photo -> "photo"
+        DiaryType.Audio -> "audio"
     })
     put("content", gson.toJson(it.content))
 })

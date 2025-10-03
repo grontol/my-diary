@@ -36,10 +36,21 @@ export type DiaryPhotoData = DiaryCommonData & {
     }
 }
 
-export type DiaryMediaData = DiaryVideoData | DiaryPhotoData
-export type DiaryData = DiaryTextData | DiaryVideoData | DiaryPhotoData
+export type DiaryAudioData = DiaryCommonData & {
+    type: "audio"
+    content: {
+        audio: string
+        duration: number
+        size: number
+        gain: number
+        note?: string
+    }
+}
 
-export type DiaryInputData = Omit<DiaryTextData, 'id' | 'createdAt'> | Omit<DiaryVideoData, 'id' | 'createdAt'> | Omit<DiaryPhotoData, 'id' | 'createdAt'>
+export type DiaryMediaData = DiaryVideoData | DiaryPhotoData | DiaryAudioData
+export type DiaryData = DiaryTextData | DiaryVideoData | DiaryPhotoData | DiaryAudioData
+
+export type DiaryInputData = Omit<DiaryTextData, 'id' | 'createdAt'> | Omit<DiaryVideoData, 'id' | 'createdAt'> | Omit<DiaryPhotoData, 'id' | 'createdAt'> | Omit<DiaryAudioData, 'id' | 'createdAt'>
 
 const storeName: StoreName = "diary"
 

@@ -15,6 +15,13 @@ export type PhotoData = {
     size: number
 }
 
+export type AudioData = {
+    type: "audio"
+    name: string
+    size: number
+    duration: number
+}
+
 type AndroidEnv = {
     isAndroid(): boolean
     export(data: string, fileName: string): void
@@ -38,6 +45,11 @@ type AndroidEnv = {
     takePhoto(cb: (success: boolean, photo?: PhotoData) => void): void
     uploadPhoto(cb: (success: boolean, progress: number, video?: PhotoData) => void): void
     viewPhoto(name: string): void
+    
+    recordAudio(cb: (amp: number) => void): void
+    stopRecordAudio(cb: (data: AudioData) => void): void
+    uploadAudio(cb: (success: boolean, progress: number, audio?: AudioData) => void): void
+    playAudio(name: string, gain: number): void
     
     deleteUnusedMedia(): void
     deleteMedia(medias: string[]): void
@@ -117,6 +129,49 @@ const androidEnv: AndroidEnv | undefined = (() => {
         }
         
         rawAndroidEnv.uploadPhoto(id)
+    }
+    
+    let recordAudioCbId: string | null = null
+    env.recordAudio = (cb) => {
+        const id = v4()
+        recordAudioCbId = id
+        
+        __callbacks[id] = {
+            cb,
+            shouldDelete: () => false,
+        }
+        
+        rawAndroidEnv.recordAudio(id)
+    }
+    
+    env.stopRecordAudio = (cb) => {
+        if (recordAudioCbId) {
+            delete __callbacks[recordAudioCbId]
+        }
+        
+        const id = v4()
+        __callbacks[id] = {
+            cb,
+            shouldDelete: (success: boolean, progress: number) => !success || progress >= 1,
+            mapArgs(args) {
+                return [{ ...JSON.parse(args[0]), type: "audio" }]
+            },
+        }
+        
+        rawAndroidEnv.stopRecordAudio(id)
+    }
+    
+    env.uploadAudio = (cb) => {
+        const id = v4()
+        __callbacks[id] = {
+            cb,
+            shouldDelete: (success: boolean, progress: number) => !success || progress >= 1,
+            mapArgs(args) {
+                return [args[0], args[1], { ...JSON.parse(args[2]), type: "audio" }]
+            },
+        }
+        
+        rawAndroidEnv.uploadAudio(id)
     }
     
     return env
