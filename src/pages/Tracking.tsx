@@ -802,12 +802,12 @@ function DiaryList(props: {
             />
         </div>
         
-        {(props.data.diary.type === "video" || props.data.diary.type === "photo") && <>
+        {(props.data.diary.type === "video" || props.data.diary.type === "photo" || props.data.diary.type === "audio") && <>
             {props.data.diary.content.note && (
                 <div class="text-xs text-gray-600 ml-7 whitespace-pre-wrap">{props.data.diary.content.note}</div>
             )}
         
-            {expanded.value && (
+            {expanded.value && (props.data.diary.type === "video" || props.data.diary.type === "photo") && (
                 <div
                     class="self-center mt-1 overflow-hidden"
                 >

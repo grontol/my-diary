@@ -10,12 +10,12 @@ import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { derived, state } from "@pang/reactive.js";
 import { twMerge } from "tailwind-merge";
 
-const sampleMedia: AudioData = {
-    type: "audio",
-    name: "diary_1759478849449_audio.m4a",
-    size: 135889000,
-    duration: 5200,
-}
+// const sampleMedia: AudioData = {
+//     type: "audio",
+//     name: "diary_1759478849449_audio.m4a",
+//     size: 135889000,
+//     duration: 5200,
+// }
 
 export function MediaDiaryInput(props: {
     onCancel: () => void
@@ -65,11 +65,14 @@ export function MediaDiaryInput(props: {
     
     const recordingAudio = state(false)
     const recordingAudioAmp = state(0)
+    const recordingAudioDuration = state(0)
     
     const gain = state((props.data?.type === "video" || props.data?.type === "audio") ? props.data.content.gain : 0)
     const note = state(props.data?.content.note ?? "")
     
     const colledtedMedias: (VideoData | PhotoData | AudioData)[] = []
+    
+    let recordAudioIntervalId: any = null
     
     function save() {
         if (!mediaData.value) {
@@ -244,13 +247,22 @@ export function MediaDiaryInput(props: {
     
     function recordAudio() {
         recordingAudio.value = true
+        recordingAudioDuration.value = 0
         
         getAndroidEnv()?.recordAudio(amp => {
             recordingAudioAmp.value = amp
         })
+        
+        recordAudioIntervalId = setInterval(() => {
+            recordingAudioDuration.value += 1000
+        }, 1000)
     }
     
     function stopRecordAudio() {
+        if (recordAudioIntervalId) {
+            clearInterval(recordAudioIntervalId)
+        }
+        
         getAndroidEnv()?.stopRecordAudio(data => {
             recordingAudio.value = false
             mediaData.value = data ?? null
@@ -265,7 +277,6 @@ export function MediaDiaryInput(props: {
         uploading.value = true
         
         getAndroidEnv()?.uploadAudio((success, progress, audio) => {
-            console.log(success, progress, audio)
             if (success) {
                 if (progress >= 1) {
                     uploading.value = false
@@ -414,22 +425,26 @@ export function MediaDiaryInput(props: {
                     <ProgressBar value={uploadProgress.value}/>
                     <span>Upload</span>
                 </div>
-            ) : recordingAudio.value ? (
+            ) : recordingAudio.value ? <>
                 <div class="flex items-center justify-center w-[80%] aspect-square relative self-center mt-6">
                     <div
                         class="bg-pink-300 aspect-square rounded-full absolute"
                         style={{
-                            width: `${60 + 40 * recordingAudioAmp.value / 90}%`
+                            width: `${20 + 80 * recordingAudioAmp.value / 90}%`
                         }}
                     />
                     <div
-                        class="bg-pink-600 active:bg-pink-700 w-[60%] aspect-square rounded-full absolute flex items-center justify-center"
+                        class="bg-pink-600 active:bg-pink-700 w-[40%] aspect-square rounded-full absolute flex items-center justify-center"
                         onclick={stopRecordAudio}
                     >
                         <span class="icon-[ic--round-stop] text-7xl text-white"/>
                     </div>
+                
+                    <span
+                        class="absolute top-[100%] text-3xl font-bold text-pink-700"
+                    >{formatVideoLengthText(recordingAudioDuration.value)}</span>
                 </div>
-            ) : (
+            </> : (
                 <div class="grid grid-cols-2 p-6 gap-2">
                     <MainIcon
                         text="Record Video"

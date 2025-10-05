@@ -356,6 +356,11 @@ class WebViewHelper(
                             val image = content.get("image").asString
                             toRemove.remove(image)
                         }
+                        else if (diary.type == DiaryType.Audio) {
+                            val content = diary.content.asJsonObject
+                            val image = content.get("audio").asString
+                            toRemove.remove(image)
+                        }
                     }
 
                     for (f in toRemove) {
@@ -378,8 +383,8 @@ class WebViewHelper(
             }
         }, "AndroidEnv")
 
-//        webView.loadUrl("http://192.168.100.21:5173")
-        webView.loadUrl("https://appassets.androidplatform.net/index.html")
+        webView.loadUrl("http://192.168.100.21:5173")
+//        webView.loadUrl("https://appassets.androidplatform.net/index.html")
 
         DbRepo.changedEvent.observe(context) {
             dataChanged(it)
