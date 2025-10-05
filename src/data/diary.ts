@@ -50,7 +50,7 @@ export type DiaryAudioData = DiaryCommonData & {
 export type DiaryMediaData = DiaryVideoData | DiaryPhotoData | DiaryAudioData
 export type DiaryData = DiaryTextData | DiaryVideoData | DiaryPhotoData | DiaryAudioData
 
-export type DiaryInputData = Omit<DiaryTextData, 'id' | 'createdAt'> | Omit<DiaryVideoData, 'id' | 'createdAt'> | Omit<DiaryPhotoData, 'id' | 'createdAt'> | Omit<DiaryAudioData, 'id' | 'createdAt'>
+export type DiaryInputData = Omit<DiaryTextData, 'id'> | Omit<DiaryVideoData, 'id'> | Omit<DiaryPhotoData, 'id'> | Omit<DiaryAudioData, 'id'>
 
 const storeName: StoreName = "diary"
 
@@ -68,17 +68,14 @@ export async function diaryAdd(data: DiaryInputData) {
     await repo.insert(storeName, {
         ...data,
         id: v4(),
-    })
+    } satisfies DiaryData)
 }
 
 
 export async function diaryEdit(id: string, data: DiaryInputData) {
-    const oldData = await repo.get(storeName, id) as DiaryData
-    
     const d: DiaryData = {
         ...data,
         id,
-        createdAt: oldData.createdAt,
     }
     
     await repo.update(storeName, id, d)

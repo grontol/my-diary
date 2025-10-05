@@ -3,6 +3,7 @@ import { Button, IconButton } from "@/components/Button.jsx";
 import { TextInput } from "@/components/TextInput.jsx";
 import { ActorData, actorGetAll } from "@/data/actor.js";
 import { DiaryMediaData } from "@/data/diary.js";
+import { dateFormatDateToString, dateFormatDateToTimestamp } from "@/utils/date.js";
 import { AudioData, envAsAndroidFileUrl, getAndroidEnv, PhotoData, VideoData } from "@/utils/env.js";
 import { formatFileSizeText, formatVideoLengthText } from "@/utils/format.js";
 import { foreach } from "@pang/core.js";
@@ -19,8 +20,9 @@ import { twMerge } from "tailwind-merge";
 
 export function MediaDiaryInput(props: {
     onCancel: () => void
-    onSave: (acrot: string, data: VideoData | PhotoData | AudioData, gain: number, note: string) => void
+    onSave: (acrot: string, data: VideoData | PhotoData | AudioData, gain: number, note: string, date: string, createdAt: string) => void
     data?: DiaryMediaData
+    date?: string
 }) {
     const actors = state<ActorData[]>([])
     const selectedActor = state(props.data?.actor ?? "")
@@ -69,6 +71,8 @@ export function MediaDiaryInput(props: {
     
     const gain = state((props.data?.type === "video" || props.data?.type === "audio") ? props.data.content.gain : 0)
     const note = state(props.data?.content.note ?? "")
+    const date = state(props.data?.date ? dateFormatDateToString(props.data.date) : props.date ?? '')
+    const createdAt = state(props.data?.createdAt ? dateFormatDateToTimestamp(props.data.createdAt) : dateFormatDateToTimestamp(new Date()))
     
     const colledtedMedias: (VideoData | PhotoData | AudioData)[] = []
     
@@ -128,7 +132,7 @@ export function MediaDiaryInput(props: {
         
         getAndroidEnv()?.deleteMedia(toDelete)
         
-        props.onSave(selectedActor.value, mediaData.value, gain.value, note.value)
+        props.onSave(selectedActor.value, mediaData.value, gain.value, note.value, date.value, createdAt.value)
     }
     
     function cancel() {
@@ -351,6 +355,24 @@ export function MediaDiaryInput(props: {
                 oninput={v => note.value = v}
                 placeholder="Note..."
                 canGrow={true}
+                noStyle={true}
+            />
+            
+            <TextInput
+                type="date"
+                class="px-4 border-b border-fuchsia-700 w-full"
+                value={date.value}
+                oninput={v => date.value = v}
+                placeholder="Date..."
+                noStyle={true}
+            />
+            
+            <TextInput
+                type="datetime-local"
+                class="px-4 border-b border-fuchsia-700 w-full"
+                value={createdAt.value}
+                oninput={v => createdAt.value = v}
+                placeholder="Created At..."
                 noStyle={true}
             />
             

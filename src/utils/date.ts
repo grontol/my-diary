@@ -6,6 +6,10 @@ export function dateFormatDateToString(date: Date) {
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
 }
 
+export function dateFormatDateToTimestamp(date: Date) {
+    return `${dateFormatDateToString(date)} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`
+}
+
 export function dateFormatToTime(date: Date) {
     const h = date.getHours()
     const m = date.getMinutes()

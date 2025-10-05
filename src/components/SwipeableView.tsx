@@ -5,22 +5,12 @@ export function SwipeableView(props: {
     onPrev?: () => void
     onNext?: () => void
 }) {
-    const xThreshold = window.innerWidth * 0.65 * 0.15
+    const xThreshold = window.innerWidth * 0.65 * 0.25
     const velocityThreshold = 0.5
     const duration = 100
-    const minPercentage = 0.7
     
     const translation = state(0)
     const animating = state(false)
-    
-    const percentage = derived(() => {
-        if (translation.value > 0) {
-            return 1 - (1 - minPercentage) * translation.value / window.innerWidth
-        }
-        else {
-            return 1 + (1 - minPercentage) * translation.value / window.innerWidth
-        }
-    })
     
     let dragging = false
     let startX = 0
@@ -32,8 +22,8 @@ export function SwipeableView(props: {
     function touchStart(e: TouchEvent) {
         if (timeoutId) clearTimeout(timeoutId)
         
-        startX = e.touches[0].clientX
-        startY = e.touches[0].clientY
+        startX = e.touches[0].screenX
+        startY = e.touches[0].screenY
         deltaX = 0
         startTime = Date.now()
         dragging = true
@@ -42,8 +32,8 @@ export function SwipeableView(props: {
     function touchMove(e: TouchEvent) {
         if (!dragging) return
         
-        deltaX = e.touches[0].clientX - startX
-        const deltaY = e.touches[0].clientY - startY
+        deltaX = e.touches[0].screenX - startX
+        const deltaY = e.touches[0].screenY - startY
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
             translation.value = 0
         }

@@ -8,6 +8,7 @@ export function TextInput(props: {
     canGrow?: boolean
     noStyle?: boolean
     text?: "md" | "sm" | "lg"
+    type?: string
     class?: string
 }) {
     let textArea: HTMLTextAreaElement | null = null
@@ -54,6 +55,7 @@ export function TextInput(props: {
             >{props.value}</textarea>
         ) : (
             <input
+                type={props.type}
                 class={twMerge(
                     "outline-none px-3 py-1",
                     props.noStyle ? "py-2" : "bg-white/60 border border-fuchsia-600 rounded-lg",

@@ -383,8 +383,8 @@ class WebViewHelper(
             }
         }, "AndroidEnv")
 
-        webView.loadUrl("http://192.168.100.21:5173")
-//        webView.loadUrl("https://appassets.androidplatform.net/index.html")
+//        webView.loadUrl("http://192.168.100.21:5173")
+        webView.loadUrl("https://appassets.androidplatform.net/index.html")
 
         DbRepo.changedEvent.observe(context) {
             dataChanged(it)

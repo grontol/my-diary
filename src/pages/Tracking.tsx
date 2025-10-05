@@ -18,7 +18,7 @@ import { foreach } from "@pang/core.js";
 import { prevent, stop } from "@pang/event-utils.js";
 import { onDestroy, onMount } from "@pang/lifecycle.js";
 import { effect, state } from "@pang/reactive.js";
-import { twMerge } from "tailwind-merge";
+import { twJoin, twMerge } from "tailwind-merge";
 
 type TrackingListItemData = {
     tracking: TrackingData
@@ -72,6 +72,16 @@ export function Tracking() {
         localStorage.setItem("__dt_galleryMode", galleryMode.value ? "true" : "false")
     })
     
+    const galleryModeIncludeAudio = state(localStorage.getItem("__dt_galleryModeIncludeAudio") === "true")
+    effect(() => {
+        localStorage.setItem("__dt_galleryModeIncludeAudio", galleryMode.value ? "true" : "false")
+    })
+    
+    const hideMediaOnList = state(localStorage.getItem("__dt_hideMediaOnList") === "true")
+    effect(() => {
+        localStorage.setItem("__dt_hideMediaOnList", galleryMode.value ? "true" : "false")
+    })
+    
     let selectedYear = 0
     let selectedMonth = 0
     let selectedDate = 0
@@ -105,6 +115,7 @@ export function Tracking() {
     function monthChanged() {
         activeDate.value = ""
         trackingList.value = []
+        diaryList.value = []
     }
     
     function onIncMonth() {
@@ -228,6 +239,7 @@ export function Tracking() {
                 type: "text",
                 content,
                 date: new Date(selectedYear, selectedMonth, selectedDate),
+                createdAt: new Date(selectedYear, selectedMonth, selectedDate),
             })
         }
         else {
@@ -237,6 +249,7 @@ export function Tracking() {
                 content,
                 
                 date: new Date(selectedYear, selectedMonth, selectedDate),
+                createdAt: new Date(selectedYear, selectedMonth, selectedDate),
             })
         }
         
@@ -246,14 +259,14 @@ export function Tracking() {
         inputTextDiaryVisible.value = false
     }
     
-    async function saveMediaDiary(actor: string, data: VideoData | PhotoData | AudioData, gain: number, note: string) {
-        const now = new Date()
+    async function saveMediaDiary(actor: string, data: VideoData | PhotoData | AudioData, gain: number, note: string, date: string, createdAt: string) {
         let inputData: DiaryInputData
         
         if (data.type === "video") {
             inputData = {
                 actor,
-                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
+                date: new Date(date),
+                createdAt: new Date(createdAt),
                 type: "video",
                 content: {
                     duration: data.length,
@@ -268,7 +281,8 @@ export function Tracking() {
         else if (data.type === "audio") {
             inputData = {
                 actor,
-                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
+                date: new Date(date),
+                createdAt: new Date(createdAt),
                 type: "audio",
                 content: {
                     audio: data.name,
@@ -282,7 +296,8 @@ export function Tracking() {
         else {
             inputData = {
                 actor,
-                date: new Date(selectedYear, selectedMonth, selectedDate, now.getHours(), now.getMinutes(), now.getSeconds()),
+                date: new Date(date),
+                createdAt: new Date(createdAt),
                 type: "photo",
                 content: {
                     image: data.name,
@@ -293,10 +308,6 @@ export function Tracking() {
         }
         
         if (editDiaryId) {
-            if (inputMediaDiaryData.value) {
-                inputData.date = inputMediaDiaryData.value.date
-            }
-            
             await diaryEdit(editDiaryId, inputData)
         }
         else {
@@ -553,6 +564,7 @@ export function Tracking() {
                 onCancel={() => inputMediaDiaryVisible.value = false}
                 onSave={saveMediaDiary}
                 data={inputMediaDiaryData.value ?? undefined}
+                date={activeDate.value}
             />
         )}
         
@@ -563,8 +575,10 @@ export function Tracking() {
             {galleryMode.value ? (
                 <GalleryView
                     list={diaryList.value}
+                    includeAudio={galleryModeIncludeAudio.value}
                     onShow={showDiary}
                     onEdit={editDiary}
+                    onDelete={deleteDiary}
                 />
             ) : null}
             
@@ -577,7 +591,7 @@ export function Tracking() {
                     />
                 ))}
                 
-                {foreach(diaryList, d => (
+                {foreach(diaryList, d => hideMediaOnList.value && d.diary.type !== "text" ? null : (
                     <DiaryList
                         data={d}
                         onShow={() => showDiary(d)}
@@ -605,10 +619,28 @@ export function Tracking() {
                     selectable: true,
                     selected: galleryMode.value,
                 },
+                {
+                    id: "galleryModeIncludeAudio",
+                    kind: "item",
+                    text: "Gallery Mode Include Audio",
+                    selectable: true,
+                    selected: galleryModeIncludeAudio.value,
+                },
+                {
+                    id: "hideMediaOnList",
+                    kind: "item",
+                    text: "Hide Media on List",
+                    selectable: true,
+                    selected: hideMediaOnList.value,
+                },
             ]}
             visible={settingsPopupVisible.value}
             onClose={() => settingsPopupVisible.value = false}
-            onSelect={(id) => { if (id === "galleryMode") { galleryMode.value = !galleryMode.value } }}
+            onSelect={(id) => {
+                if (id === "galleryMode") { galleryMode.value = !galleryMode.value }
+                else if (id === "galleryModeIncludeAudio") { galleryModeIncludeAudio.value = !galleryModeIncludeAudio.value }
+                else if (id === "hideMediaOnList") { hideMediaOnList.value = !hideMediaOnList.value }
+            }}
         />
         
         <Popup
@@ -637,26 +669,43 @@ export function Tracking() {
     </div>
 }
 
+function getImageForDiary(d: DiaryData): string {
+    if (d.type === "video") return envAsAndroidFileUrl(d.content.thumbnail)
+    else if (d.type === "photo") return envAsAndroidFileUrl(d.content.image)
+    else return "/images/waveform.jpg"
+}
+
 function GalleryView(props: {
     list: DiaryListItemData[]
+    includeAudio: boolean
     onShow: (i: DiaryListItemData) => void
     onEdit: (i: DiaryListItemData) => void
+    onDelete: (i: DiaryListItemData) => void
 }) {
     return <div class="grid grid-cols-3 px-4 gap-1">
-        {foreach(props.list, d => d.diary.type === "video" || d.diary.type === "photo" ? (
+        {foreach(props.list, d => d.diary.type === "video" || d.diary.type === "photo" || (d.diary.type === "audio" && props.includeAudio) ? (
             <div
                 class="relative"
                 oncontextmenu={prevent()}
             >
                 <img
-                    class="rounded-lg"
-                    src={envAsAndroidFileUrl(d.diary.type === "video" ? d.diary.content.thumbnail : d.diary.content.image)}
+                    class={twJoin(
+                        "rounded-lg bg-black",
+                        d.diary.type === "audio" ? "p-6 pt-12" : "",
+                    )}
+                    src={getImageForDiary(d.diary)}
                     style={{
                         aspectRatio: "1280/1920",
-                        objectFit: "cover",
+                        objectFit: d.diary.type === "audio" ? "contain" : "cover",
                     }}
                     oncontextmenu={prevent()}
                 />
+                
+                {d.diary.type === "audio" && (
+                    <span
+                        class="absolute text-white/80 left-0 right-0 top-7 text-center text-xs px-2"
+                    >{d.diary.content.note}</span>
+                )}
                 
                 <div
                     class="absolute inset-0 active:bg-black/10"
@@ -670,6 +719,8 @@ function GalleryView(props: {
                             ? "icon-[tabler--video-filled]"
                         : d.diary.type === "photo"
                             ? "icon-[ic--round-photo]"
+                        : d.diary.type === "audio"
+                            ? "icon-[mdi--waveform]"
                             : "icon-[mingcute--diary-fill]"
                     )}
                     style={{ background: d.actor.color }}
@@ -680,18 +731,24 @@ function GalleryView(props: {
                     <span>{dateFormatToTime(d.diary.createdAt)}</span>                        
                 </div>
                 
-                {d.diary.type === "video" && (
+                {(d.diary.type === "video" || d.diary.type === "audio") && (
                     <div class="absolute right-0 bottom-0 bg-black/50 text-white px-1 py-0.5 text-xs rounded-lg flex items-center gap-0.5">
                         <span class="icon-[line-md--play-filled] text-xs"/>
                         <span >{formatVideoLengthText(d.diary.content.duration)}</span>
                     </div>
                 )}
                 
-                <IconButton
-                    class="absolute top-0.5 right-0.5"
-                    icon="icon-[material-symbols--edit]"
-                    onclick={() => props.onEdit(d)}
-                />
+                <div class="flex absolute top-0.5 right-0.5">
+                    <IconButton
+                        icon="icon-[material-symbols--delete]"
+                        onclick={() => props.onDelete(d)}
+                    />
+                    
+                    <IconButton
+                        icon="icon-[material-symbols--edit]"
+                        onclick={() => props.onEdit(d)}
+                    />
+                </div>
             </div>
         ) : null)}
     </div>
@@ -771,7 +828,13 @@ function DiaryList(props: {
             <span class="text-sm">{props.data.actor.emoji}</span>
             
             {(props.data.diary.type === "video" || props.data.diary.type === "photo" || props.data.diary.type === "audio") && <>
-                <span class="text-xs font-bold ml-1 text-gray-500">{dateFormatToTime(props.data.diary.createdAt)}</span>
+                <span class="icon-[tabler--clock-filled] text-gray-500 text-xs ml-1"/>
+                <span class="text-xs font-bold text-gray-500">{dateFormatToTime(props.data.diary.createdAt)}</span>
+            </>}
+            
+            {(props.data.diary.type === "audio" || props.data.diary.type === "video") && <>
+                <span class="icon-[mdi--play] text-gray-500 ml-1"/>
+                <span class="text-xs font-bold text-gray-500 mr-2">{formatVideoLengthText(props.data.diary.content.duration)}</span>
             </>}
             
             <div class="flex-1"/>
@@ -785,10 +848,6 @@ function DiaryList(props: {
                         expanded.value ? "rotate-90" : ""
                     )}
                 />
-            )}
-            
-            {props.data.diary.type === "audio" && (
-                <span class="text-xs font-bold ml-1 text-gray-500 mr-2">{formatVideoLengthText(props.data.diary.content.duration)}</span>
             )}
             
             <IconButton
